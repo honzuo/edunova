@@ -49,4 +49,15 @@ class SessionProvider extends ChangeNotifier {
     await _db.deleteSession(id);
     await loadSessions();
   }
+
+  int get todayStudyMinutes {
+    final now = DateTime.now();
+
+    return _sessions
+        .where((s) =>
+    s.startTime.year == now.year &&
+        s.startTime.month == now.month &&
+        s.startTime.day == now.day)
+        .fold(0, (sum, s) => sum + s.durationMinutes);
+  }
 }

@@ -88,4 +88,15 @@ class TaskProvider extends ChangeNotifier {
     _filter = newFilter;
     notifyListeners();
   }
+
+  List<StudyTask> get todayTasks {
+    final now = DateTime.now();
+
+    return _tasks.where((task) {
+      final d = task.deadline;
+      return d.year == now.year &&
+          d.month == now.month &&
+          d.day == now.day;
+    }).toList();
+  }
 }

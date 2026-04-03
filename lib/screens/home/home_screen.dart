@@ -38,6 +38,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _summaryCard(String title, String value, IconData icon) {
     return Expanded(
       child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 3,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
           child: Column(
@@ -53,7 +57,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(title),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -67,6 +74,10 @@ class _HomeScreenState extends State<HomeScreen> {
       VoidCallback onTap,
       ) {
     return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      elevation: 2,
       child: ListTile(
         leading: Icon(icon),
         title: Text(title),
@@ -81,12 +92,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final report = context.watch<ProgressProvider>().report;
     final totalHours = (report.totalStudyMinutes / 60).toStringAsFixed(1);
 
+    final todayTasks = context.watch<TaskProvider>().todayTasks;
+    final todayMinutes = context.watch<SessionProvider>().todayStudyMinutes;
+
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
+          centerTitle: true,
           title: const Text('EduNova Home'),
         ),
-        body: Padding(
+        body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 6),
               const Text('Let\'s make today productive.'),
               const SizedBox(height: 16),
+
               Row(
                 children: [
                   _summaryCard(
@@ -122,6 +138,63 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
+
+              const SizedBox(height: 20),
+              const Text(
+                'Today',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Today Tasks (${todayTasks.length})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (todayTasks.isEmpty)
+                        const Text('No tasks for today')
+                      else
+                        ...todayTasks.take(3).map(
+                              (task) => Padding(
+                            padding:
+                            const EdgeInsets.symmetric(vertical: 2),
+                            child: Text('• ${task.title}'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+                child: ListTile(
+                  leading: const Icon(Icons.timer),
+                  title: const Text('Today Study Time'),
+                  subtitle: Text('$todayMinutes minutes'),
+                ),
+              ),
+
               const SizedBox(height: 20),
               const Text(
                 'Quick Access',
@@ -131,18 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              _quickButton(
-                'Pomodoro Timer',
-                Icons.timer,
-                    () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PomodoroScreen(),
-                    ),
-                  );
-                },
-              ),
+
               _quickButton(
                 'Go to Tasks',
                 Icons.task,
@@ -157,6 +219,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 'View Progress',
                 Icons.bar_chart,
                     () => widget.onNavigate(3),
+              ),
+              _quickButton(
+                'Pomodoro Timer',
+                Icons.timer,
+                    () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PomodoroScreen(),
+                    ),
+                  );
+                },
               ),
               _quickButton(
                 'Settings',

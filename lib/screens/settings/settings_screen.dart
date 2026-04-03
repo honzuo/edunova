@@ -1,16 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
-import '../../providers/theme_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../providers/theme_provider.dart';
 import 'profile_screen.dart';
 import 'reminder_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-  Future<void> logout() async {
-    await Supabase.instance.client.auth.signOut();
+  Future<void> logout(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      await Supabase.instance.client.auth.signOut();
+    }
   }
 
   @override
@@ -62,7 +84,7 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
-            onTap: logout,
+            onTap: () => logout(context),
           ),
         ],
       ),
