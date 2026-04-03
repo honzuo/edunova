@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/task_provider.dart';
 import '../../providers/reminder_provider.dart';
+import '../../providers/task_provider.dart';
 
 class ReminderScreen extends StatefulWidget {
   const ReminderScreen({super.key});
@@ -23,6 +23,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
 
   Future<void> _showAddReminderDialog() async {
     final tasks = context.read<TaskProvider>().tasks;
+
     if (tasks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please create a task first')),
@@ -67,13 +68,18 @@ class _ReminderScreenState extends State<ReminderScreen> {
                     DropdownButtonFormField<String>(
                       value: selectedType,
                       items: const [
-                        DropdownMenuItem(value: 'Custom', child: Text('Custom')),
                         DropdownMenuItem(
-                            value: '1 hour before',
-                            child: Text('1 hour before')),
+                          value: 'Custom',
+                          child: Text('Custom'),
+                        ),
                         DropdownMenuItem(
-                            value: '1 day before',
-                            child: Text('1 day before')),
+                          value: '1 hour before',
+                          child: Text('1 hour before'),
+                        ),
+                        DropdownMenuItem(
+                          value: '1 day before',
+                          child: Text('1 day before'),
+                        ),
                       ],
                       onChanged: (value) {
                         if (value != null) {
@@ -149,17 +155,47 @@ class _ReminderScreenState extends State<ReminderScreen> {
     );
   }
 
+  Future<void> _confirmDeleteReminder(int reminderId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Reminder'),
+          content: const Text(
+            'Are you sure you want to delete this reminder?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true && mounted) {
+      await context.read<ReminderProvider>().removeReminder(reminderId);
+      await context.read<ReminderProvider>().loadReminders();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final reminders = context.watch<ReminderProvider>().reminders;
     final tasks = context.watch<TaskProvider>().tasks;
 
     String taskTitleById(int taskId) {
-      final task = tasks.where((t) => t.id == taskId).cast<dynamic?>().firstWhere(
-            (t) => t != null,
-        orElse: () => null,
-      );
-      return task?.title ?? 'Unknown Task';
+      try {
+        final task = tasks.firstWhere((t) => t.id == taskId);
+        return task.title;
+      } catch (_) {
+        return 'Unknown Task';
+      }
     }
 
     return Scaffold(
@@ -170,6 +206,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         itemCount: reminders.length,
         itemBuilder: (context, index) {
           final reminder = reminders[index];
+
           return Card(
             margin: const EdgeInsets.all(8),
             child: ListTile(
@@ -184,9 +221,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
                 icon: const Icon(Icons.delete, color: Colors.red),
                 onPressed: () {
                   if (reminder.id != null) {
-                    context
-                        .read<ReminderProvider>()
-                        .removeReminder(reminder.id!);
+                    _confirmDeleteReminder(reminder.id!);
                   }
                 },
               ),

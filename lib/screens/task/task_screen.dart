@@ -349,11 +349,31 @@ class _TaskScreenState extends State<TaskScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () {
-                            if (task.id != null) {
-                              context.read<TaskProvider>().removeTask(task.id!);
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: const Text('Delete Task'),
+                                    content: const Text('Are you sure you want to delete this task?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () => Navigator.pop(context, true),
+                                        child: const Text('Delete'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+
+                              if (confirm == true && task.id != null) {
+                                context.read<TaskProvider>().removeTask(task.id!);
+                              }
                             }
-                          },
                         ),
                       ],
                     ),

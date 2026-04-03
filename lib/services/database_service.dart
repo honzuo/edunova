@@ -102,6 +102,17 @@ class DatabaseService {
         created_at TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE user_preferences (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
+        dark_mode INTEGER,
+        notification_enabled INTEGER,
+        default_reminder_type TEXT,
+        daily_summary_enabled INTEGER
+      )
+    ''');
   }
 
   Future<int> insertTask(Map<String, dynamic> task) async {
@@ -231,5 +242,40 @@ class DatabaseService {
   Future<int> insertPomodoroRecord(Map<String, dynamic> record) async {
     final db = await database;
     return await db.insert('pomodoro_records', record);
+  }
+
+  Future<int> insertUserPreference(Map<String, dynamic> preference) async {
+    final db = await database;
+    return await db.insert(
+      'user_preferences',
+      preference,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<Map<String, dynamic>?> getUserPreference(String userId) async {
+    final db = await database;
+    final result = await db.query(
+      'user_preferences',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      limit: 1,
+    );
+
+    if (result.isEmpty) return null;
+    return result.first;
+  }
+
+  Future<int> updateUserPreference(
+      String userId,
+      Map<String, dynamic> preference,
+      ) async {
+    final db = await database;
+    return await db.update(
+      'user_preferences',
+      preference,
+      where: 'user_id = ?',
+      whereArgs: [userId],
+    );
   }
 }

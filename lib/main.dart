@@ -11,6 +11,7 @@ import 'providers/reminder_provider.dart';
 import 'providers/progress_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/pomodoro_provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,8 +33,10 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ProgressProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => PomodoroProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()..loadPreference()),
       ],
       child: const EduNovaApp(),
     ),
   );
 }
+

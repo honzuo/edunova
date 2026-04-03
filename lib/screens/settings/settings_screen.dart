@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
+import '../../providers/theme_provider.dart';
 
 import 'profile_screen.dart';
 import 'reminder_screen.dart';
@@ -19,6 +21,18 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: ListView(
         children: [
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) {
+              return SwitchListTile(
+                secondary: const Icon(Icons.dark_mode),
+                title: const Text('Dark Mode'),
+                value: themeProvider.isDarkMode,
+                onChanged: (value) {
+                  themeProvider.toggleDarkMode(value);
+                },
+              );
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.person),
             title: const Text('Profile'),
