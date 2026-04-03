@@ -1,0 +1,69 @@
+# --- Flutter / Dart ---
+.dart_tool/
+.packages
+.pub/
+build/
+
+# Generated files
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pubspec.lock
+
+# --- IDE ---
+.idea/
+.vscode/
+*.iml
+
+# --- Android ---
+android/.gradle/
+android/local.properties
+android/app/build/
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/app/intermediates/
+android/app/generated/
+android/captures/
+android/.cxx/
+
+# Gradle
+android/gradlew
+android/gradlew.bat
+
+# --- iOS ---
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/App.framework
+ios/Flutter/Generated.xcconfig
+
+# --- macOS ---
+macos/Pods/
+macos/Flutter/Flutter.framework
+
+# --- Linux ---
+linux/flutter/ephemeral/
+
+# --- Windows ---
+windows/flutter/ephemeral/
+
+# --- Logs ---
+*.log
+
+# --- Temp ---
+*.tmp
+*.swp
+.DS_Store
+
+# --- Keystore / secrets ---
+key.properties
+**/*.jks
+**/*.keystore
+
+# --- Firebase / Supabase config（如果有）---
+*.json
+*.env
+
+# --- Coverage ---
+coverage/
