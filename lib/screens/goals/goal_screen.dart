@@ -60,6 +60,7 @@ class GoalScreen extends StatelessWidget {
         const SliverToBoxAdapter(child: SizedBox(height: 80)),
       ]),
       floatingActionButton: FloatingActionButton(
+        heroTag: "fab_goal",
         onPressed: () => _addGoal(context),
         child: const Icon(Icons.add_rounded),
       ),

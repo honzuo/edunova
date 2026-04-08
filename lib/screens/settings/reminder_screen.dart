@@ -109,6 +109,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "fab_reminder",
         onPressed: () => _addReminder(context, tasks),
         child: const Icon(Icons.add_rounded),
       ),

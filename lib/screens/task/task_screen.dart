@@ -71,6 +71,7 @@ class _TaskScreenState extends State<TaskScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "fab_task",
         onPressed: () => _showAddTaskSheet(context),
         child: const Icon(Icons.add_rounded),
       ),

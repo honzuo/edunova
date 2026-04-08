@@ -203,6 +203,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "fab_calendar",
         onPressed: () => _showAddSessionSheet(context),
         child: const Icon(Icons.add_rounded),
       ),
