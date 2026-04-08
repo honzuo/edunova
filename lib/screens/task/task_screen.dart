@@ -15,258 +15,15 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      context.read<TaskProvider>().loadTasks();
-    });
+    Future.microtask(() => context.read<TaskProvider>().loadTasks());
   }
 
-  Future<void> _showEditDialog(StudyTask task) async {
-    final titleController = TextEditingController(text: task.title);
-    final descriptionController =
-    TextEditingController(text: task.description);
-    final subjectController = TextEditingController(text: task.subject);
-    final priorityController = TextEditingController(text: task.priority);
-
-    DateTime selectedDeadline = task.deadline;
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Task'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                ),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description'),
-                ),
-                TextField(
-                  controller: subjectController,
-                  decoration: const InputDecoration(labelText: 'Subject'),
-                ),
-                TextField(
-                  controller: priorityController,
-                  decoration: const InputDecoration(labelText: 'Priority'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final updated = task.copyWith(
-                  title: titleController.text,
-                  description: descriptionController.text,
-                  subject: subjectController.text,
-                  priority: priorityController.text,
-                  deadline: selectedDeadline,
-                );
-
-                await context.read<TaskProvider>().updateTask(updated);
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _showAddTaskDialog() async {
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final subjectController = TextEditingController();
-    final priorityController = TextEditingController(text: 'Medium');
-
-    DateTime selectedDeadline = DateTime.now().add(const Duration(days: 1));
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Task'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                ),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description'),
-                ),
-                TextField(
-                  controller: subjectController,
-                  decoration: const InputDecoration(labelText: 'Subject'),
-                ),
-                TextField(
-                  controller: priorityController,
-                  decoration: const InputDecoration(labelText: 'Priority'),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text('Deadline: '),
-                    Expanded(
-                      child: Text(
-                        '${selectedDeadline.day}/${selectedDeadline.month}/${selectedDeadline.year}',
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.calendar_today),
-                      onPressed: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDeadline,
-                          firstDate: DateTime(2024),
-                          lastDate: DateTime(2100),
-                        );
-                        if (picked != null) {
-                          selectedDeadline = picked;
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                            _showAddTaskDialogWithValues(
-                              titleController.text,
-                              descriptionController.text,
-                              subjectController.text,
-                              priorityController.text,
-                              selectedDeadline,
-                            );
-                          }
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (titleController.text.trim().isEmpty) return;
-
-                await context.read<TaskProvider>().addTask(
-                  title: titleController.text.trim(),
-                  description: descriptionController.text.trim(),
-                  subject: subjectController.text.trim(),
-                  deadline: selectedDeadline,
-                  priority: priorityController.text.trim().isEmpty
-                      ? 'Medium'
-                      : priorityController.text.trim(),
-                );
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _showAddTaskDialogWithValues(
-      String title,
-      String description,
-      String subject,
-      String priority,
-      DateTime deadline,
-      ) async {
-    final titleController = TextEditingController(text: title);
-    final descriptionController = TextEditingController(text: description);
-    final subjectController = TextEditingController(text: subject);
-    final priorityController = TextEditingController(text: priority);
-
-    DateTime selectedDeadline = deadline;
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Task'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                ),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description'),
-                ),
-                TextField(
-                  controller: subjectController,
-                  decoration: const InputDecoration(labelText: 'Subject'),
-                ),
-                TextField(
-                  controller: priorityController,
-                  decoration: const InputDecoration(labelText: 'Priority'),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text('Deadline: '),
-                    Expanded(
-                      child: Text(
-                        '${selectedDeadline.day}/${selectedDeadline.month}/${selectedDeadline.year}',
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (titleController.text.trim().isEmpty) return;
-
-                await context.read<TaskProvider>().addTask(
-                  title: titleController.text.trim(),
-                  description: descriptionController.text.trim(),
-                  subject: subjectController.text.trim(),
-                  deadline: selectedDeadline,
-                  priority: priorityController.text.trim().isEmpty
-                      ? 'Medium'
-                      : priorityController.text.trim(),
-                );
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
+  Color _priorityColor(String p) {
+    switch (p.toLowerCase()) {
+      case 'high': return const Color(0xFFFF3B30);
+      case 'medium': return const Color(0xFFFF9500);
+      default: return const Color(0xFF34C759);
+    }
   }
 
   @override
@@ -275,119 +32,259 @@ class _TaskScreenState extends State<TaskScreen> {
     final tasks = provider.filteredTasks;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Study Tasks'),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ChoiceChip(
-                  label: const Text('All'),
-                  selected: provider.filter == TaskFilter.all,
-                  onSelected: (_) {
-                    context.read<TaskProvider>().setFilter(TaskFilter.all);
-                  },
-                ),
-                ChoiceChip(
-                  label: const Text('Completed'),
-                  selected: provider.filter == TaskFilter.completed,
-                  onSelected: (_) {
-                    context.read<TaskProvider>().setFilter(TaskFilter.completed);
-                  },
-                ),
-                ChoiceChip(
-                  label: const Text('Pending'),
-                  selected: provider.filter == TaskFilter.pending,
-                  onSelected: (_) {
-                    context.read<TaskProvider>().setFilter(TaskFilter.pending);
-                  },
-                ),
-              ],
+      body: CustomScrollView(
+        slivers: [
+          const SliverAppBar(floating: true, snap: true, title: Text('Tasks')),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Row(children: [
+                _filterChip('All', TaskFilter.all, provider),
+                const SizedBox(width: 8),
+                _filterChip('Done', TaskFilter.completed, provider),
+                const SizedBox(width: 8),
+                _filterChip('Pending', TaskFilter.pending, provider),
+              ]),
             ),
           ),
-          Expanded(
-            child: tasks.isEmpty
-                ? const Center(child: Text('No tasks yet'))
-                : ListView.builder(
-              itemCount: tasks.length,
-              itemBuilder: (context, index) {
-                final task = tasks[index];
-
-                return Card(
-                  margin: const EdgeInsets.all(8),
-                  child: ListTile(
-                    leading: Checkbox(
-                      value: task.isCompleted,
-                      onChanged: (_) {
-                        context.read<TaskProvider>().toggleComplete(task);
-                      },
-                    ),
-                    title: Text(
-                      task.title,
-                      style: TextStyle(
-                        decoration: task.isCompleted
-                            ? TextDecoration.lineThrough
-                            : null,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '${task.subject} | ${task.priority}\nDeadline: ${task.deadline.day}/${task.deadline.month}/${task.deadline.year}',
-                    ),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () {
-                            _showEditDialog(task);
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (context) {
-                                  return AlertDialog(
-                                    title: const Text('Delete Task'),
-                                    content: const Text('Are you sure you want to delete this task?'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context, false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () => Navigator.pop(context, true),
-                                        child: const Text('Delete'),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-
-                              if (confirm == true && task.id != null) {
-                                context.read<TaskProvider>().removeTask(task.id!);
-                              }
-                            }
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+          if (tasks.isEmpty)
+            const SliverFillRemaining(
+              child: Center(child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.inbox_rounded, size: 56, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text('No tasks yet', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                ],
+              )),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverList.separated(
+                itemCount: tasks.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, i) => _taskCard(tasks[i]),
+              ),
             ),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddTaskDialog,
-        child: const Icon(Icons.add),
+        onPressed: () => _showAddTaskSheet(context),
+        child: const Icon(Icons.add_rounded),
       ),
+    );
+  }
+
+  Widget _filterChip(String label, TaskFilter filter, TaskProvider provider) {
+    final selected = provider.filter == filter;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => provider.setFilter(filter),
+      showCheckmark: false,
+    );
+  }
+
+  Widget _taskCard(StudyTask task) {
+    return Card(
+      child: Dismissible(
+        key: ValueKey(task.id),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(16)),
+          child: const Icon(Icons.delete_rounded, color: Colors.white),
+        ),
+        confirmDismiss: (_) async {
+          return await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+            title: const Text('Delete Task?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Delete', style: TextStyle(color: Colors.red))),
+            ],
+          ));
+        },
+        onDismissed: (_) { if (task.id != null) context.read<TaskProvider>().removeTask(task.id!); },
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _showEditSheet(task),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(children: [
+              GestureDetector(
+                onTap: () => context.read<TaskProvider>().toggleComplete(task),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 24, height: 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: task.isCompleted ? const Color(0xFF34C759) : Colors.transparent,
+                    border: Border.all(
+                      color: task.isCompleted ? const Color(0xFF34C759) : Colors.grey[400]!,
+                      width: 2,
+                    ),
+                  ),
+                  child: task.isCompleted
+                      ? const Icon(Icons.check_rounded, size: 16, color: Colors.white) : null,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(task.title, style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600,
+                    decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                    color: task.isCompleted ? Colors.grey : null,
+                  )),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _priorityColor(task.priority).withAlpha(20),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(task.priority, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _priorityColor(task.priority))),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(task.subject, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                    const Spacer(),
+                    Text('${task.deadline.day}/${task.deadline.month}',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                  ]),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddTaskSheet(BuildContext context) {
+    final titleCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    final subjectCtrl = TextEditingController();
+    String priority = 'Medium';
+    DateTime deadline = DateTime.now().add(const Duration(days: 1));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardTheme.color,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Padding(
+        padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          const Align(alignment: Alignment.centerLeft,
+              child: Text('New Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+          const SizedBox(height: 16),
+          TextField(controller: titleCtrl, decoration: const InputDecoration(hintText: 'Title')),
+          const SizedBox(height: 10),
+          TextField(controller: descCtrl, decoration: const InputDecoration(hintText: 'Description')),
+          const SizedBox(height: 10),
+          TextField(controller: subjectCtrl, decoration: const InputDecoration(hintText: 'Subject')),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: priority,
+                decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                items: ['Low', 'Medium', 'High'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                onChanged: (v) => setSt(() => priority = v!),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final d = await showDatePicker(context: ctx, initialDate: deadline, firstDate: DateTime(2024), lastDate: DateTime(2100));
+                  if (d != null) setSt(() => deadline = d);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).inputDecorationTheme.fillColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(children: [
+                    Icon(Icons.calendar_today_rounded, size: 16, color: Colors.grey[500]),
+                    const SizedBox(width: 8),
+                    Text('${deadline.day}/${deadline.month}/${deadline.year}',
+                        style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+                  ]),
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              if (titleCtrl.text.trim().isEmpty) return;
+              context.read<TaskProvider>().addTask(
+                title: titleCtrl.text.trim(), description: descCtrl.text.trim(),
+                subject: subjectCtrl.text.trim(), deadline: deadline, priority: priority,
+              );
+              Navigator.pop(ctx);
+            },
+            child: const Text('Add Task'),
+          ),
+        ]),
+      )),
+    );
+  }
+
+  void _showEditSheet(StudyTask task) {
+    final titleCtrl = TextEditingController(text: task.title);
+    final descCtrl = TextEditingController(text: task.description);
+    final subjectCtrl = TextEditingController(text: task.subject);
+    String priority = task.priority;
+    DateTime deadline = task.deadline;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardTheme.color,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Padding(
+        padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          const Align(alignment: Alignment.centerLeft,
+              child: Text('Edit Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+          const SizedBox(height: 16),
+          TextField(controller: titleCtrl, decoration: const InputDecoration(hintText: 'Title')),
+          const SizedBox(height: 10),
+          TextField(controller: descCtrl, decoration: const InputDecoration(hintText: 'Description')),
+          const SizedBox(height: 10),
+          TextField(controller: subjectCtrl, decoration: const InputDecoration(hintText: 'Subject')),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: priority,
+            decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+            items: ['Low', 'Medium', 'High'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+            onChanged: (v) => setSt(() => priority = v!),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              context.read<TaskProvider>().updateTask(task.copyWith(
+                title: titleCtrl.text.trim(), description: descCtrl.text.trim(),
+                subject: subjectCtrl.text.trim(), priority: priority, deadline: deadline,
+              ));
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save Changes'),
+          ),
+        ]),
+      )),
     );
   }
 }

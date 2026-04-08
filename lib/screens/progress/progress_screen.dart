@@ -5,10 +5,10 @@ import '../../providers/progress_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../widgets/progress_bar_chart.dart';
+import '../../widgets/heatmap_calendar.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
-
   @override
   State<ProgressScreen> createState() => _ProgressScreenState();
 }
@@ -20,7 +20,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
     Future.microtask(() async {
       await context.read<TaskProvider>().loadTasks();
       await context.read<SessionProvider>().loadSessions();
-
       if (mounted) {
         context.read<ProgressProvider>().generateReport(
           taskProvider: context.read<TaskProvider>(),
@@ -30,98 +29,78 @@ class _ProgressScreenState extends State<ProgressScreen> {
     });
   }
 
-  Widget _summaryCard(String title, String value, IconData icon) {
-    return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
-          child: Column(
-            children: [
-              Icon(icon, size: 28),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  Map<DateTime, int> _buildHeatmapData() {
+    final sessions = context.read<SessionProvider>().sessions;
+    final Map<DateTime, int> data = {};
+    for (final s in sessions) {
+      final key = DateTime(s.startTime.year, s.startTime.month, s.startTime.day);
+      data[key] = (data[key] ?? 0) + s.durationMinutes;
+    }
+    return data;
   }
 
   @override
   Widget build(BuildContext context) {
-    final report = context.watch<ProgressProvider>().report;
+    final r = context.watch<ProgressProvider>().report;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Study Progress'),
+      body: CustomScrollView(
+        slivers: [
+          const SliverAppBar(floating: true, snap: true, title: Text('Progress')),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const SizedBox(height: 8),
+                Row(children: [
+                  _stat('Completed', '${r.completedTasks}', const Color(0xFF34C759)),
+                  const SizedBox(width: 10),
+                  _stat('Pending', '${r.pendingTasks}', const Color(0xFFFF9500)),
+                ]),
+                const SizedBox(height: 10),
+                Row(children: [
+                  _stat('Study Time', '${(r.totalStudyMinutes / 60).toStringAsFixed(1)}h', const Color(0xFF5856D6)),
+                  const SizedBox(width: 10),
+                  _stat('Completion', '${r.completionRate.toStringAsFixed(0)}%', const Color(0xFF0A84FF)),
+                ]),
+
+                const SizedBox(height: 28),
+                const Text('Weekly Study', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+                const SizedBox(height: 10),
+                Card(child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ProgressBarChart(weeklyStudyMinutes: r.weeklyStudyMinutes),
+                )),
+
+                const SizedBox(height: 28),
+                Card(child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: HeatmapCalendar(data: _buildHeatmapData()),
+                )),
+                const SizedBox(height: 40),
+              ]),
+            ),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                _summaryCard(
-                  'Completed',
-                  '${report.completedTasks}',
-                  Icons.check_circle,
-                ),
-                const SizedBox(width: 8),
-                _summaryCard(
-                  'Pending',
-                  '${report.pendingTasks}',
-                  Icons.pending_actions,
-                ),
-              ],
+    );
+  }
+
+  Widget _stat(String label, String value, Color color) {
+    return Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 8, height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _summaryCard(
-                  'Study Time',
-                  '${report.totalStudyMinutes} min',
-                  Icons.timer,
-                ),
-                const SizedBox(width: 8),
-                _summaryCard(
-                  'Completion',
-                  '${report.completionRate.toStringAsFixed(1)}%',
-                  Icons.show_chart,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Weekly Study Minutes',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: ProgressBarChart(
-                  weeklyStudyMinutes: report.weeklyStudyMinutes,
-                ),
-              ),
-            ),
-          ],
+            const SizedBox(height: 10),
+            Text(value, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+            const SizedBox(height: 2),
+            Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+          ]),
         ),
       ),
     );

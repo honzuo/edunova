@@ -7,3 +7,5 @@ flutter pub add flutter_local_notifications
 flutter pub add timezone
 flutter pub add table_calendar
 flutter pub add fl_chart
+flutter pub add share_plus
+flutter pub add shared_preferences

@@ -16,11 +16,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int currentIndex = 0;
 
-  void changeTab(int index) {
-    setState(() {
-      currentIndex = index;
-    });
-  }
+  void changeTab(int index) => setState(() => currentIndex = index);
 
   late final List<Widget> screens = [
     HomeScreen(onNavigate: changeTab),
@@ -33,18 +29,27 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: screens[currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: changeTab,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.task), label: 'Task'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Calendar'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Progress'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-        ],
+      body: IndexedStack(index: currentIndex, children: screens),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).dividerTheme.color ?? Colors.grey[200]!,
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: currentIndex,
+          onTap: changeTab,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.house_rounded), label: 'Home'),
+            BottomNavigationBarItem(icon: Icon(Icons.checklist_rounded), label: 'Tasks'),
+            BottomNavigationBarItem(icon: Icon(Icons.calendar_month_rounded), label: 'Calendar'),
+            BottomNavigationBarItem(icon: Icon(Icons.insights_rounded), label: 'Progress'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'More'),
+          ],
+        ),
       ),
     );
   }

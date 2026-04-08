@@ -113,6 +113,36 @@ class DatabaseService {
         daily_summary_enabled INTEGER
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE achievements (
+        id TEXT,
+        user_id TEXT,
+        title TEXT,
+        description TEXT,
+        icon_name TEXT,
+        target_value INTEGER,
+        current_value INTEGER,
+        is_unlocked INTEGER,
+        unlocked_at TEXT,
+        PRIMARY KEY (id, user_id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE study_goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
+        title TEXT,
+        goal_type TEXT,
+        target_value INTEGER,
+        current_value INTEGER DEFAULT 0,
+        start_date TEXT,
+        end_date TEXT,
+        is_completed INTEGER DEFAULT 0,
+        created_at TEXT
+      )
+    ''');
   }
 
   Future<int> insertTask(Map<String, dynamic> task) async {
@@ -276,6 +306,84 @@ class DatabaseService {
       preference,
       where: 'user_id = ?',
       whereArgs: [userId],
+    );
+  }
+
+  // ── Achievements ──
+
+  Future<List<Map<String, dynamic>>> getAchievementsByUser(
+      String userId) async {
+    final db = await database;
+    return await db.query(
+      'achievements',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  Future<void> upsertAchievement(
+      String userId, Map<String, dynamic> data) async {
+    final db = await database;
+    data['user_id'] = userId;
+    await db.insert(
+      'achievements',
+      data,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // ── Goals ──
+
+  Future<int> insertGoal(Map<String, dynamic> goal) async {
+    final db = await database;
+    return await db.insert('study_goals', goal);
+  }
+
+  Future<List<Map<String, dynamic>>> getGoalsByUser(String userId) async {
+    final db = await database;
+    return await db.query(
+      'study_goals',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'created_at DESC',
+    );
+  }
+
+  Future<void> updateGoalProgress(int id, int currentValue,
+      {bool? isCompleted}) async {
+    final db = await database;
+    final data = <String, dynamic>{'current_value': currentValue};
+    if (isCompleted != null) data['is_completed'] = isCompleted ? 1 : 0;
+    await db.update('study_goals', data, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> deleteGoal(int id) async {
+    final db = await database;
+    return await db.delete('study_goals', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ── Pomodoro query ──
+
+  Future<List<Map<String, dynamic>>> getPomodorosByUser(
+      String userId) async {
+    final db = await database;
+    return await db.query(
+      'pomodoro_records',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  // ── Search helper ──
+
+  Future<List<Map<String, dynamic>>> searchTasks(
+      String userId, String query) async {
+    final db = await database;
+    return await db.query(
+      'study_tasks',
+      where:
+          "user_id = ? AND (title LIKE ? OR subject LIKE ? OR description LIKE ?)",
+      whereArgs: [userId, '%$query%', '%$query%', '%$query%'],
     );
   }
 }
