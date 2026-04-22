@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
       id: 10,
       title: 'Test Reminder',
       body: 'This should appear in 1 minutes',
-      triggerTime: DateTime.now().add(const Duration(minutes: 1)),
+      triggerTime: DateTime.now().add(const Duration(seconds: 20)),
     );
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);

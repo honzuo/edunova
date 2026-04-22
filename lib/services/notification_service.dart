@@ -8,12 +8,11 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _plugin =
-  FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
     tz_data.initializeTimeZones();
-
+    // 设置本地时区
     tz.setLocalLocation(tz.getLocation('Asia/Kuala_Lumpur'));
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -31,13 +30,15 @@ class NotificationService {
     );
 
     try {
-      final granted = await _plugin
-          .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
+      final implementation = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
 
-      debugPrint('Notification permission granted: $granted');
-      debugPrint('Timezone local: ${tz.local.name}');
+      // 请求 Android 13+ 通知权限
+      await implementation?.requestNotificationsPermission();
+      // 请求 Android 12+ 精确闹钟权限
+      await implementation?.requestExactAlarmsPermission();
+
+      debugPrint('Notification Service Initialized');
     } catch (e) {
       debugPrint('Notification permission error: $e');
     }
@@ -70,13 +71,14 @@ class NotificationService {
     required DateTime triggerTime,
   }) async {
     try {
-      debugPrint('========== SCHEDULE REMINDER ==========');
-      debugPrint('Now: ${DateTime.now()}');
-      debugPrint('TriggerTime: $triggerTime');
-      debugPrint('tz.local: ${tz.local.name}');
-
+      // 将 DateTime 转换为 TZDateTime
       final scheduledDate = tz.TZDateTime.from(triggerTime, tz.local);
-      debugPrint('ScheduledDate: $scheduledDate');
+
+      // 验证时间是否在未来
+      if (scheduledDate.isBefore(tz.TZDateTime.now(tz.local))) {
+        debugPrint('Error: Trigger time is in the past.');
+        return;
+      }
 
       await _plugin.zonedSchedule(
         id: id,
@@ -90,17 +92,16 @@ class NotificationService {
             channelDescription: 'Reminder notifications for study tasks',
             importance: Importance.max,
             priority: Priority.max,
+            showWhen: true,
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        // 使用 exactAllowWhileIdle 确保在 Android 12+ 上准时弹出
+        // 注意：此处已移除导致报错的 uiLocalNotificationDateInterpretation 参数
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
 
-      final pending = await _plugin.pendingNotificationRequests();
-      debugPrint('Pending count: ${pending.length}');
-      for (final p in pending) {
-        debugPrint('Pending -> ${p.id}, ${p.title}, ${p.body}');
-      }
+      debugPrint('Successfully scheduled at: $scheduledDate');
     } catch (e) {
       debugPrint('Schedule notification error: $e');
     }
