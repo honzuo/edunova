@@ -1,63 +1,47 @@
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+/// theme_provider.dart — State management for app theme.
+///
+/// Loads dark mode preference from Supabase [app_users] table.
 
-import '../models/user_preference.dart';
+import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import '../models/app_user.dart';
 
 class ThemeProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService();
-
   bool _isDarkMode = false;
   bool get isDarkMode => _isDarkMode;
-
-  String get _userId =>
-      Supabase.instance.client.auth.currentUser?.id ?? 'demo-user';
-
   ThemeMode get themeMode => _isDarkMode ? ThemeMode.dark : ThemeMode.light;
 
+  /// Load dark mode preference from Supabase.
   Future<void> loadPreference() async {
-    final data = await _db.getUserPreference(_userId);
-
-    if (data != null) {
-      final pref = UserPreference.fromMap(data);
-      _isDarkMode = pref.darkMode;
-    } else {
-      final pref = UserPreference(
-        userId: _userId,
-        darkMode: false,
-        notificationEnabled: true,
-        defaultReminderType: '1 hour before',
-        dailySummaryEnabled: false,
-      );
-
-      await _db.insertUserPreference(pref.toMap());
-      _isDarkMode = false;
+    try {
+      final uid = AuthService().currentUserId ?? 'demo-user';
+      final data = await _db.getUserById(uid);
+      if (data != null) {
+        _isDarkMode = AppUser.fromMap(data).darkMode;
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading theme: $e');
     }
-
-    notifyListeners();
   }
 
-  Future<void> toggleDarkMode(bool value) async {
-    final existing = await _db.getUserPreference(_userId);
-
-    UserPreference pref;
-    if (existing != null) {
-      pref = UserPreference.fromMap(existing).copyWith(
-        darkMode: value,
-      );
-      await _db.updateUserPreference(_userId, pref.toMap());
-    } else {
-      pref = UserPreference(
-        userId: _userId,
-        darkMode: value,
-        notificationEnabled: true,
-        defaultReminderType: '1 hour before',
-        dailySummaryEnabled: false,
-      );
-      await _db.insertUserPreference(pref.toMap());
-    }
-
-    _isDarkMode = value;
+  /// Toggle dark mode and save to Supabase.
+  Future<void> toggleDarkMode(bool v) async {
+    _isDarkMode = v;
     notifyListeners();
+    try {
+      final uid = AuthService().currentUserId ?? 'demo-user';
+      final data = await _db.getUserById(uid);
+      if (data != null) {
+        await _db.updateUser(
+          uid,
+          AppUser.fromMap(data).copyWith(darkMode: v).toMap(),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving theme: $e');
+    }
   }
 }

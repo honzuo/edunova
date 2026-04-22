@@ -1,3 +1,11 @@
+/// audio_service.dart — Ambient sound mixer for Pomodoro focus sessions.
+///
+/// Uses [just_audio] to play looping ambient sounds with:
+/// - Multiple simultaneous sounds (rain, cafe, fire, forest, ocean, library)
+/// - Individual volume control per sound
+/// - Smooth fade-in/fade-out transitions
+/// - Proper resource cleanup on dispose
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
@@ -84,6 +92,20 @@ class AudioService {
   Future<void> stopAll() async {
     final ids = _players.keys.toList();
     await Future.wait(ids.map(stop));
+  }
+
+  /// Resume all audio players that were playing (call after video_player steals focus).
+  Future<void> resumeAll() async {
+    for (final entry in _players.entries) {
+      final player = entry.value;
+      final vol = _volumes[entry.key] ?? 0.5;
+      try {
+        if (!player.playing) {
+          await player.setVolume(vol);
+          unawaited(player.play());
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> _fade(AudioPlayer player, double from, double to) async {

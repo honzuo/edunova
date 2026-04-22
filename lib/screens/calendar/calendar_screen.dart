@@ -1,3 +1,10 @@
+/// calendar_screen.dart — Calendar view for tasks and study sessions.
+///
+/// Uses [table_calendar] package to display a monthly calendar
+/// with event dots. Shows tasks and sessions for the selected day.
+/// Supports adding new study sessions with time picker.
+/// Sessions can be deleted via swipe-to-dismiss.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -211,6 +218,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _showAddSessionSheet(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController();
     final subjectCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
@@ -224,44 +232,51 @@ class _CalendarScreenState extends State<CalendarScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Padding(
         padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          const Align(alignment: Alignment.centerLeft,
-              child: Text('New Session', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
-          const SizedBox(height: 16),
-          TextField(controller: titleCtrl, decoration: const InputDecoration(hintText: 'Title')),
-          const SizedBox(height: 10),
-          TextField(controller: subjectCtrl, decoration: const InputDecoration(hintText: 'Subject')),
-          const SizedBox(height: 10),
-          TextField(controller: notesCtrl, decoration: const InputDecoration(hintText: 'Notes')),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(child: _timeTile(ctx, 'Start', start, (t) => setSt(() => start = t))),
-            const SizedBox(width: 10),
-            Expanded(child: _timeTile(ctx, 'End', end, (t) => setSt(() => end = t))),
+        child: Form(
+          key: formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            const Align(alignment: Alignment.centerLeft,
+                child: Text('New Session', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(hintText: 'Title'),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(controller: subjectCtrl, decoration: const InputDecoration(hintText: 'Subject')),
+            const SizedBox(height: 10),
+            TextFormField(controller: notesCtrl, decoration: const InputDecoration(hintText: 'Notes')),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: _timeTile(ctx, 'Start', start, (t) => setSt(() => start = t))),
+              const SizedBox(width: 10),
+              Expanded(child: _timeTile(ctx, 'End', end, (t) => setSt(() => end = t))),
+            ]),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                final s = DateTime(date.year, date.month, date.day, start.hour, start.minute);
+                final e = DateTime(date.year, date.month, date.day, end.hour, end.minute);
+                if (!e.isAfter(s)) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('End must be after start')));
+                  return;
+                }
+                context.read<SessionProvider>().addSession(
+                  title: titleCtrl.text.trim(), subject: subjectCtrl.text.trim(),
+                  startTime: s, endTime: e, notes: notesCtrl.text.trim(),
+                );
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save Session'),
+            ),
           ]),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              if (titleCtrl.text.trim().isEmpty) return;
-              final s = DateTime(date.year, date.month, date.day, start.hour, start.minute);
-              final e = DateTime(date.year, date.month, date.day, end.hour, end.minute);
-              if (!e.isAfter(s)) {
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('End must be after start')));
-                return;
-              }
-              context.read<SessionProvider>().addSession(
-                title: titleCtrl.text.trim(), subject: subjectCtrl.text.trim(),
-                startTime: s, endTime: e, notes: notesCtrl.text.trim(),
-              );
-              Navigator.pop(ctx);
-            },
-            child: const Text('Save Session'),
-          ),
-        ]),
+        ),
       )),
-    );
+    ).then((_) { titleCtrl.dispose(); subjectCtrl.dispose(); notesCtrl.dispose(); });
   }
 
   Widget _timeTile(BuildContext ctx, String label, TimeOfDay time, void Function(TimeOfDay) onPick) {

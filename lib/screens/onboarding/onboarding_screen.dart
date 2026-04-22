@@ -1,3 +1,10 @@
+/// onboarding_screen.dart — First-time user onboarding flow.
+///
+/// Displays 5 feature introduction pages with swipe navigation:
+/// 1. Welcome  2. Task Management  3. Pomodoro Timer
+/// 4. Achievements & Goals  5. Progress Tracking
+/// Saves completion state to SharedPreferences.
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

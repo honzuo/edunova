@@ -1,3 +1,10 @@
+/// reminder_screen.dart — Study reminder management.
+///
+/// Lists all scheduled reminders with swipe-to-delete.
+/// Add new reminders by selecting a task, type (custom/1hr/1day
+/// before), and date/time. Uses [NotificationService] for
+/// scheduling local push notifications.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -122,7 +129,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
       return;
     }
 
-    int taskId = tasks.first.id!;
+    // Find the first task with an id as default selection
+    var selectedTask = tasks.firstWhere((t) => t.id != null);
+    int taskId = selectedTask.id!;
     String type = 'Custom';
     DateTime dt = DateTime.now().add(const Duration(hours: 1));
 
@@ -138,29 +147,63 @@ class _ReminderScreenState extends State<ReminderScreen> {
           const Align(alignment: Alignment.centerLeft,
               child: Text('New Reminder', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
           const SizedBox(height: 16),
+
+          // ── Select Task ──
           DropdownButtonFormField<int>(
             value: taskId,
             decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
             items: tasks.where((t) => t.id != null).map<DropdownMenuItem<int>>((t) =>
-                DropdownMenuItem(value: t.id!, child: Text(t.title))).toList(),
-            onChanged: (v) { if (v != null) setSt(() => taskId = v); },
+                DropdownMenuItem(value: t.id!, child: Text(t.title, overflow: TextOverflow.ellipsis))).toList(),
+            onChanged: (v) {
+              if (v != null) {
+                setSt(() {
+                  taskId = v;
+                  selectedTask = tasks.firstWhere((t) => t.id == v);
+                  // Recalculate trigger time if using pre-set type
+                  if (type == '1 hour before') {
+                    dt = selectedTask.deadline.subtract(const Duration(hours: 1));
+                  } else if (type == '1 day before') {
+                    dt = selectedTask.deadline.subtract(const Duration(days: 1));
+                  }
+                });
+              }
+            },
           ),
           const SizedBox(height: 10),
+
+          // ── Reminder Type ──
           DropdownButtonFormField<String>(
             value: type,
             decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
             items: ['Custom', '1 hour before', '1 day before']
                 .map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-            onChanged: (v) { if (v != null) setSt(() => type = v); },
+            onChanged: (v) {
+              if (v == null) return;
+              setSt(() {
+                type = v;
+                // Auto-calculate trigger time based on task deadline
+                if (v == '1 hour before') {
+                  dt = selectedTask.deadline.subtract(const Duration(hours: 1));
+                } else if (v == '1 day before') {
+                  dt = selectedTask.deadline.subtract(const Duration(days: 1));
+                }
+              });
+            },
           ),
           const SizedBox(height: 10),
+
+          // ── Date/Time Picker ──
           InkWell(
             onTap: () async {
               final d = await showDatePicker(context: ctx, initialDate: dt, firstDate: DateTime.now(), lastDate: DateTime(2100));
               if (d == null) return;
+              if (!ctx.mounted) return;
               final t = await showTimePicker(context: ctx, initialTime: TimeOfDay.fromDateTime(dt));
               if (t == null) return;
-              setSt(() => dt = DateTime(d.year, d.month, d.day, t.hour, t.minute));
+              setSt(() {
+                dt = DateTime(d.year, d.month, d.day, t.hour, t.minute);
+                type = 'Custom'; // Switch to Custom if user manually picks time
+              });
             },
             child: Container(
               width: double.infinity,
@@ -178,9 +221,23 @@ class _ReminderScreenState extends State<ReminderScreen> {
             ),
           ),
           const SizedBox(height: 20),
+
+          // ── Save Button ──
           ElevatedButton(
             onPressed: () {
-              context.read<ReminderProvider>().addReminder(taskId: taskId, reminderType: type, triggerTime: dt);
+              // Validate: trigger time must be in the future
+              if (dt.isBefore(DateTime.now())) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Reminder time must be in the future')),
+                );
+                return;
+              }
+              context.read<ReminderProvider>().addReminder(
+                taskId: taskId,
+                taskTitle: selectedTask.title,
+                reminderType: type,
+                triggerTime: dt,
+              );
               Navigator.pop(ctx);
             },
             child: const Text('Save Reminder'),

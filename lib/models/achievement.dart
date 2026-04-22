@@ -1,3 +1,9 @@
+/// achievement.dart — Data model for gamification achievements.
+///
+/// Maps to the [achievements] table. Each achievement has a target
+/// value and tracks current progress. Unlocks when the target is met.
+/// Supports badges for tasks, pomodoro sessions, streaks, and study hours.
+
 class Achievement {
   final String id;
   final String title;

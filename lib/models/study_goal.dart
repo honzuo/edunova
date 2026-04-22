@@ -1,3 +1,9 @@
+/// study_goal.dart — Data model for user-defined study goals.
+///
+/// Maps to the [study_goals] table. Goals can track weekly/monthly
+/// study hours, daily completed tasks, or study streaks.
+/// Progress is automatically updated by [GoalProvider].
+
 class StudyGoal {
   final int? id;
   final String userId;

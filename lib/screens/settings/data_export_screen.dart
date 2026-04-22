@@ -1,3 +1,9 @@
+/// data_export_screen.dart — Export study data as CSV.
+///
+/// Exports all tasks and study sessions to a CSV file
+/// and shares it via the system share sheet using [share_plus].
+/// File is saved to the app's documents directory.
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';

@@ -1,3 +1,9 @@
+/// study_session.dart — Data model for a study session record.
+///
+/// Maps to the [study_sessions] table. Tracks when a user studied,
+/// for how long, which subject, and any notes. Can be linked to a task
+/// via [taskId] for progress tracking.
+
 class StudySession {
   final int? id;
   final String userId;

@@ -1,3 +1,9 @@
+/// study_task.dart — Data model for a study task.
+///
+/// Maps to the [study_tasks] table. Each task has a title, description,
+/// subject, deadline, priority (Low/Medium/High), and completion status.
+/// Supports CRUD operations through [DatabaseService].
+
 class StudyTask {
   final int? id;
   final String userId;

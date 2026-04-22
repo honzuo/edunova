@@ -1,3 +1,8 @@
+/// reminder_rule.dart — Data model for study task reminders.
+///
+/// Maps to the [reminder_rules] table. Each reminder is linked to
+/// a task and triggers a local notification at the specified time.
+
 class ReminderRule {
   final int? id;
   final String userId;

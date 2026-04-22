@@ -1,3 +1,9 @@
+/// search_screen.dart — Global search across tasks and sessions.
+///
+/// Provides real-time search filtering by title, subject,
+/// and description. Results are grouped into Tasks and Sessions
+/// sections with appropriate icons and details.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/task_provider.dart';
@@ -12,6 +18,12 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _ctrl = TextEditingController();
   String _q = '';
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

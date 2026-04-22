@@ -1,8 +1,23 @@
+/// task_screen.dart — Task management screen with date-based view.
+///
+/// Features:
+/// - Horizontal date selector strip (30 days)
+/// - Filter chips (All / Done / Pending)
+/// - Task cards with priority colors and swipe-to-delete
+/// - Add/edit task bottom sheet with subject/priority/deadline
+/// - Quick-launch Pomodoro timer for any task
+/// - Upcoming tasks section for today's view
+
+import '../../constants/subjects.dart';
+import '../../models/subject.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/study_task.dart';
 import '../../providers/task_provider.dart';
+import '../../providers/session_provider.dart';
+import '../home/pomodoro_screen.dart';
 
 class TaskScreen extends StatefulWidget {
   const TaskScreen({super.key});
@@ -12,10 +27,51 @@ class TaskScreen extends StatefulWidget {
 }
 
 class _TaskScreenState extends State<TaskScreen> {
+  DateTime _selectedDate = DateTime.now();
+  late final PageController _datePageCtrl;
+  List<Subject> _subjectList = [];
+
+  // We show 14 days: 7 past + today + 6 future
+  static const _daysBefore = 7;
+  static const _totalDays = 30;
+
+  late final List<DateTime> _dates;
+
   @override
   void initState() {
     super.initState();
+    final today = DateTime.now();
+    _dates = List.generate(_totalDays, (i) {
+      return DateTime(today.year, today.month, today.day - _daysBefore + i);
+    });
+    _datePageCtrl = PageController(initialPage: _daysBefore);
     Future.microtask(() => context.read<TaskProvider>().loadTasks());
+    _loadSubjects();
+  }
+
+  Future<void> _loadSubjects() async {
+    await SubjectService().load();
+    if (mounted) setState(() => _subjectList = SubjectService().subjects);
+  }
+
+  List<String> get _subjectNames => _subjectList.map((s) => s.name).toList();
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  List<StudyTask> _tasksForDate(List<StudyTask> all, DateTime date) {
+    return all.where((t) => _isSameDay(t.deadline, date)).toList();
+  }
+
+  String _weekdayShort(int weekday) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days[weekday - 1];
+  }
+
+  String _monthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
   }
 
   Color _priorityColor(String p) {
@@ -29,15 +85,38 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<TaskProvider>();
-    final tasks = provider.filteredTasks;
+    final allTasks = provider.filteredTasks;
+    final dayTasks = _tasksForDate(allTasks, _selectedDate);
+    final cs = Theme.of(context).colorScheme;
+    final isToday = _isSameDay(_selectedDate, DateTime.now());
+
+    // Count tasks per date for dots
+    final Map<String, int> taskCounts = {};
+    for (final t in allTasks) {
+      final key = '${t.deadline.year}-${t.deadline.month}-${t.deadline.day}';
+      taskCounts[key] = (taskCounts[key] ?? 0) + 1;
+    }
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          const SliverAppBar(floating: true, snap: true, title: Text('Tasks')),
+          SliverAppBar(
+            floating: true, snap: true,
+            title: Text('${_monthName(_selectedDate.month)} ${_selectedDate.year}'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  setState(() => _selectedDate = DateTime.now());
+                },
+                child: const Text('Today'),
+              ),
+            ],
+          ),
+
+          // ── Filter Chips ──
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Row(children: [
                 _filterChip('All', TaskFilter.all, provider),
                 const SizedBox(width: 8),
@@ -47,33 +126,215 @@ class _TaskScreenState extends State<TaskScreen> {
               ]),
             ),
           ),
-          if (tasks.isEmpty)
-            const SliverFillRemaining(
-              child: Center(child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.inbox_rounded, size: 56, color: Colors.grey),
-                  SizedBox(height: 12),
-                  Text('No tasks yet', style: TextStyle(color: Colors.grey, fontSize: 16)),
-                ],
-              )),
+
+          // ── Date Selector Strip ──
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 82,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _dates.length,
+                itemBuilder: (context, i) {
+                  final date = _dates[i];
+                  final selected = _isSameDay(date, _selectedDate);
+                  final today = _isSameDay(date, DateTime.now());
+                  final key = '${date.year}-${date.month}-${date.day}';
+                  final count = taskCounts[key] ?? 0;
+
+                  return GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedDate = date);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 52,
+                      margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? cs.primary
+                            : today
+                                ? cs.primary.withAlpha(15)
+                                : Colors.transparent,
+                        borderRadius: BorderRadius.circular(16),
+                        border: today && !selected
+                            ? Border.all(color: cs.primary.withAlpha(50), width: 1.5)
+                            : null,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _weekdayShort(date.weekday),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: selected ? Colors.white70 : Colors.grey[500],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${date.day}',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: selected ? Colors.white : null,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // Task count dot
+                          if (count > 0)
+                            Container(
+                              width: 6, height: 6,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: selected ? Colors.white70 : cs.primary,
+                              ),
+                            )
+                          else
+                            const SizedBox(width: 6, height: 6),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // ── Date Header ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(children: [
+                Text(
+                  isToday
+                      ? 'Today'
+                      : '${_selectedDate.day} ${_monthName(_selectedDate.month)}',
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.5),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: cs.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${dayTasks.length}',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: cs.primary),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+
+          // ── Task List ──
+          if (dayTasks.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 60),
+                child: Center(child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_outline_rounded, size: 48, color: Colors.grey[300]),
+                    const SizedBox(height: 12),
+                    Text(
+                      isToday ? 'No tasks for today' : 'No tasks on this day',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 15),
+                    ),
+                  ],
+                )),
+              ),
             )
           else
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               sliver: SliverList.separated(
-                itemCount: tasks.length,
+                itemCount: dayTasks.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, i) => _taskCard(tasks[i]),
+                itemBuilder: (context, i) => _taskCard(dayTasks[i]),
               ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
+
+          // ── Upcoming Section ──
+          if (isToday && allTasks.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 8),
+                child: Text('Upcoming',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[500])),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverList.separated(
+                itemCount: _upcomingTasks(allTasks).length.clamp(0, 5),
+                separatorBuilder: (_, __) => const SizedBox(height: 6),
+                itemBuilder: (context, i) {
+                  final task = _upcomingTasks(allTasks)[i];
+                  return _compactTaskRow(task);
+                },
+              ),
+            ),
+          ],
+
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: "fab_task",
         onPressed: () => _showAddTaskSheet(context),
         child: const Icon(Icons.add_rounded),
+      ),
+    );
+  }
+
+  List<StudyTask> _upcomingTasks(List<StudyTask> all) {
+    final today = DateTime.now();
+    return all
+        .where((t) => t.deadline.isAfter(DateTime(today.year, today.month, today.day)) && !t.isCompleted)
+        .toList()
+      ..sort((a, b) => a.deadline.compareTo(b.deadline));
+  }
+
+  Widget _compactTaskRow(StudyTask task) {
+    final daysLeft = task.deadline.difference(DateTime.now()).inDays;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(children: [
+          Container(
+            width: 4, height: 32,
+            decoration: BoxDecoration(
+              color: _priorityColor(task.priority),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(task.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              Text(task.subject, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+            ],
+          )),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: daysLeft <= 1 ? const Color(0xFFFF3B30).withAlpha(15) : Colors.grey.withAlpha(15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              daysLeft == 0 ? 'Tomorrow' : 'In $daysLeft days',
+              style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600,
+                color: daysLeft <= 1 ? const Color(0xFFFF3B30) : Colors.grey[600],
+              ),
+            ),
+          ),
+        ]),
       ),
     );
   }
@@ -89,6 +350,10 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   Widget _taskCard(StudyTask task) {
+    final studyMinutes = task.id != null
+        ? context.watch<SessionProvider>().minutesForTask(task.id!)
+        : 0;
+
     return Card(
       child: Dismissible(
         key: ValueKey(task.id),
@@ -141,7 +406,12 @@ class _TaskScreenState extends State<TaskScreen> {
                     decoration: task.isCompleted ? TextDecoration.lineThrough : null,
                     color: task.isCompleted ? Colors.grey : null,
                   )),
-                  const SizedBox(height: 4),
+                  if (task.description.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(task.description, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                  ],
+                  const SizedBox(height: 6),
                   Row(children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -151,14 +421,38 @@ class _TaskScreenState extends State<TaskScreen> {
                       ),
                       child: Text(task.priority, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _priorityColor(task.priority))),
                     ),
-                    const SizedBox(width: 8),
-                    Text(task.subject, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-                    const Spacer(),
-                    Text('${task.deadline.day}/${task.deadline.month}',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                    if (task.subject.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Icon(Icons.book_outlined, size: 12, color: Colors.grey[400]),
+                      const SizedBox(width: 3),
+                      Text(task.subject, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                    ],
+                    if (studyMinutes > 0) ...[
+                      const SizedBox(width: 8),
+                      Icon(Icons.timer_outlined, size: 12, color: Colors.grey[400]),
+                      const SizedBox(width: 3),
+                      Text('${studyMinutes}m', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                    ],
                   ]),
                 ]),
               ),
+              // Study button
+              if (!task.isCompleted)
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => PomodoroScreen(initialTask: task)));
+                  },
+                  child: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF9500).withAlpha(20),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.play_arrow_rounded, size: 20, color: Color(0xFFFF9500)),
+                  ),
+                ),
             ]),
           ),
         ),
@@ -167,11 +461,12 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   void _showAddTaskSheet(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final subjectCtrl = TextEditingController();
+    String selectedSubject = _subjectNames.isNotEmpty ? _subjectNames.first : '';
     String priority = 'Medium';
-    DateTime deadline = DateTime.now().add(const Duration(days: 1));
+    DateTime deadline = _selectedDate;
 
     showModalBottomSheet(
       context: context,
@@ -180,71 +475,81 @@ class _TaskScreenState extends State<TaskScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Padding(
         padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          const Align(alignment: Alignment.centerLeft,
-              child: Text('New Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
-          const SizedBox(height: 16),
-          TextField(controller: titleCtrl, decoration: const InputDecoration(hintText: 'Title')),
-          const SizedBox(height: 10),
-          TextField(controller: descCtrl, decoration: const InputDecoration(hintText: 'Description')),
-          const SizedBox(height: 10),
-          TextField(controller: subjectCtrl, decoration: const InputDecoration(hintText: 'Subject')),
-          const SizedBox(height: 10),
-          Row(children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: priority,
-                decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
-                items: ['Low', 'Medium', 'High'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-                onChanged: (v) => setSt(() => priority = v!),
-              ),
+        child: Form(
+          key: formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            const Align(alignment: Alignment.centerLeft,
+                child: Text('New Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(hintText: 'Title'),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: InkWell(
-                onTap: () async {
-                  final d = await showDatePicker(context: ctx, initialDate: deadline, firstDate: DateTime(2024), lastDate: DateTime(2100));
-                  if (d != null) setSt(() => deadline = d);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Theme.of(ctx).inputDecorationTheme.fillColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(children: [
-                    Icon(Icons.calendar_today_rounded, size: 16, color: Colors.grey[500]),
-                    const SizedBox(width: 8),
-                    Text('${deadline.day}/${deadline.month}/${deadline.year}',
-                        style: TextStyle(fontSize: 15, color: Colors.grey[600])),
-                  ]),
+            const SizedBox(height: 10),
+            TextFormField(controller: descCtrl, decoration: const InputDecoration(hintText: 'Description')),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(value: _subjectNames.contains(selectedSubject) ? selectedSubject : (_subjectNames.isNotEmpty ? _subjectNames.first : null), decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)), items: _subjectNames.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(), onChanged: (v) => setSt(() => selectedSubject = v ?? ''),
+              validator: (v) => (v == null || v.isEmpty) ? 'Please select a subject' : null,
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: priority,
+                  decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                  items: ['Low', 'Medium', 'High'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                  onChanged: (v) => setSt(() => priority = v!),
                 ),
               ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    final d = await showDatePicker(context: ctx, initialDate: deadline, firstDate: DateTime(2024), lastDate: DateTime(2100));
+                    if (d != null) setSt(() => deadline = d);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).inputDecorationTheme.fillColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.calendar_today_rounded, size: 16, color: Colors.grey[500]),
+                      const SizedBox(width: 8),
+                      Text('${deadline.day}/${deadline.month}/${deadline.year}',
+                          style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+                    ]),
+                  ),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                context.read<TaskProvider>().addTask(
+                  title: titleCtrl.text.trim(), description: descCtrl.text.trim(),
+                  subject: selectedSubject, deadline: deadline, priority: priority,
+                );
+                Navigator.pop(ctx);
+              },
+              child: const Text('Add Task'),
             ),
           ]),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              if (titleCtrl.text.trim().isEmpty) return;
-              context.read<TaskProvider>().addTask(
-                title: titleCtrl.text.trim(), description: descCtrl.text.trim(),
-                subject: subjectCtrl.text.trim(), deadline: deadline, priority: priority,
-              );
-              Navigator.pop(ctx);
-            },
-            child: const Text('Add Task'),
-          ),
-        ]),
+        ),
       )),
-    );
+    ).then((_) { titleCtrl.dispose(); descCtrl.dispose(); });
   }
 
   void _showEditSheet(StudyTask task) {
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController(text: task.title);
     final descCtrl = TextEditingController(text: task.description);
-    final subjectCtrl = TextEditingController(text: task.subject);
+    String selectedSubject = task.subject.isNotEmpty && _subjectNames.contains(task.subject) ? task.subject : (_subjectNames.isNotEmpty ? _subjectNames.first : '');
     String priority = task.priority;
     DateTime deadline = task.deadline;
 
@@ -255,37 +560,71 @@ class _TaskScreenState extends State<TaskScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Padding(
         padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          const Align(alignment: Alignment.centerLeft,
-              child: Text('Edit Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
-          const SizedBox(height: 16),
-          TextField(controller: titleCtrl, decoration: const InputDecoration(hintText: 'Title')),
-          const SizedBox(height: 10),
-          TextField(controller: descCtrl, decoration: const InputDecoration(hintText: 'Description')),
-          const SizedBox(height: 10),
-          TextField(controller: subjectCtrl, decoration: const InputDecoration(hintText: 'Subject')),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            value: priority,
-            decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
-            items: ['Low', 'Medium', 'High'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-            onChanged: (v) => setSt(() => priority = v!),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              context.read<TaskProvider>().updateTask(task.copyWith(
-                title: titleCtrl.text.trim(), description: descCtrl.text.trim(),
-                subject: subjectCtrl.text.trim(), priority: priority, deadline: deadline,
-              ));
-              Navigator.pop(ctx);
-            },
-            child: const Text('Save Changes'),
-          ),
-        ]),
+        child: Form(
+          key: formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            const Align(alignment: Alignment.centerLeft,
+                child: Text('Edit Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(hintText: 'Title'),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(controller: descCtrl, decoration: const InputDecoration(hintText: 'Description')),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(value: _subjectNames.contains(selectedSubject) ? selectedSubject : (_subjectNames.isNotEmpty ? _subjectNames.first : null), decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)), items: _subjectNames.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(), onChanged: (v) => setSt(() => selectedSubject = v ?? '')),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: priority,
+                  decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                  items: ['Low', 'Medium', 'High'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                  onChanged: (v) => setSt(() => priority = v!),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    final d = await showDatePicker(context: ctx, initialDate: deadline, firstDate: DateTime(2024), lastDate: DateTime(2100));
+                    if (d != null) setSt(() => deadline = d);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).inputDecorationTheme.fillColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.calendar_today_rounded, size: 16, color: Colors.grey[500]),
+                      const SizedBox(width: 8),
+                      Text('${deadline.day}/${deadline.month}/${deadline.year}',
+                          style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+                    ]),
+                  ),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                context.read<TaskProvider>().updateTask(task.copyWith(
+                  title: titleCtrl.text.trim(), description: descCtrl.text.trim(),
+                  subject: selectedSubject, priority: priority, deadline: deadline,
+                ));
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save Changes'),
+            ),
+          ]),
+        ),
       )),
-    );
+    ).then((_) { titleCtrl.dispose(); descCtrl.dispose(); });
   }
 }

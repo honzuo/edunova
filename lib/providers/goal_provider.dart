@@ -1,5 +1,11 @@
+/// goal_provider.dart — State management for user-defined study goals.
+///
+/// Supports four goal types: weekly hours, monthly hours,
+/// daily tasks, and study streak. Automatically updates
+/// progress values and marks goals as completed.
+
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/auth_service.dart';
 
 import '../models/study_goal.dart';
 import '../services/database_service.dart';
@@ -13,7 +19,7 @@ class GoalProvider extends ChangeNotifier {
       _goals.where((g) => !g.isCompleted).toList();
 
   String get _userId =>
-      Supabase.instance.client.auth.currentUser?.id ?? 'demo-user';
+      AuthService().currentUserId ?? 'demo-user';
 
   Future<void> loadGoals() async {
     final data = await _db.getGoalsByUser(_userId);

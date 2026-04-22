@@ -1,3 +1,9 @@
+/// heatmap_calendar.dart — GitHub-style study activity heatmap widget.
+///
+/// Displays the last 16 weeks of study activity as a color-coded
+/// grid. Darker green = more study minutes. Includes tooltips
+/// showing exact minutes for each day.
+
 import 'package:flutter/material.dart';
 
 class HeatmapCalendar extends StatelessWidget {

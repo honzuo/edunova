@@ -1,3 +1,8 @@
+/// calender_event.dart — Data model for calendar event display.
+///
+/// Used to represent tasks and sessions on the calendar view.
+/// Not persisted directly — constructed from task/session data.
+
 class CalendarEvent {
   final String id;
   final String title;

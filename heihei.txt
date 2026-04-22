@@ -10,3 +10,7 @@ flutter pub add fl_chart
 flutter pub add share_plus
 flutter pub add shared_preferences
 flutter pub add just_audio
+flutter pub add image_picker
+flutter pub add crypto uuid http
+flutter pub add crypto uuid http video_player
+flutter pub add geolocator flutter_map latlong2

@@ -1,5 +1,10 @@
+/// reminder_provider.dart — State management for task reminders.
+///
+/// Manages reminder CRUD operations and schedules/cancels
+/// local notifications through [NotificationService].
+
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/auth_service.dart';
 
 import '../models/reminder_rule.dart';
 import '../services/database_service.dart';
@@ -13,7 +18,7 @@ class ReminderProvider extends ChangeNotifier {
   List<ReminderRule> get reminders => _reminders;
 
   String get _userId =>
-      Supabase.instance.client.auth.currentUser?.id ?? 'demo-user';
+      AuthService().currentUserId ?? 'demo-user';
 
   Future<void> loadReminders() async {
     final data = await _db.getRemindersByUser(_userId);
@@ -23,6 +28,7 @@ class ReminderProvider extends ChangeNotifier {
 
   Future<void> addReminder({
     required int taskId,
+    required String taskTitle,
     required String reminderType,
     required DateTime triggerTime,
   }) async {
@@ -37,10 +43,11 @@ class ReminderProvider extends ChangeNotifier {
 
     final id = await _db.insertReminder(reminder.toMap());
 
+    // Schedule a local push notification with the task title
     await _notification.scheduleReminder(
       id: id,
-      title: 'Study Reminder',
-      body: 'You have a task reminder scheduled.',
+      title: '📚 Study Reminder',
+      body: '$taskTitle — $reminderType',
       triggerTime: triggerTime,
     );
 

@@ -1,3 +1,10 @@
+/// white_noise_selector.dart — Ambient sound mixer widget.
+///
+/// Provides toggle controls for 6 ambient sounds (rain, cafe,
+/// fire, forest, ocean, library) with individual volume sliders.
+/// Sounds play simultaneously using [AudioService].
+/// Used on the Pomodoro screen for focus enhancement.
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

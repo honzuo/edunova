@@ -1,3 +1,9 @@
+/// progress_bar_chart.dart — Weekly study minutes bar chart widget.
+///
+/// Uses [fl_chart] to display a bar chart of study minutes
+/// broken down by day of the week (Mon–Sun).
+/// Used on the Progress screen.
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 

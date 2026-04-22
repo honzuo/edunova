@@ -1,3 +1,8 @@
+/// user_preference.dart — Data model for user preference settings.
+///
+/// Maps to the [user_preferences] table. Stores dark mode toggle,
+/// notification preferences, and default reminder type.
+
 class UserPreference {
   final int? id;
   final String userId;

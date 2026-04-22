@@ -1,5 +1,16 @@
+/// achievement_provider.dart — State management for gamification.
+///
+/// Defines 12 achievement badges across 4 categories:
+/// - Task completion (1, 10, 50 tasks)
+/// - Pomodoro sessions (10, 50, 100 sessions)
+/// - Study streaks (3, 7, 30 days)
+/// - Total study time (10, 50, 100 hours)
+///
+/// Calculates study streak by checking consecutive study days.
+/// Persists achievement progress to SQLite.
+
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/auth_service.dart';
 
 import '../models/achievement.dart';
 import '../services/database_service.dart';
@@ -16,7 +27,7 @@ class AchievementProvider extends ChangeNotifier {
   int get currentStreak => _currentStreak;
 
   String get _userId =>
-      Supabase.instance.client.auth.currentUser?.id ?? 'demo-user';
+      AuthService().currentUserId ?? 'demo-user';
 
   static final List<Achievement> _definitions = [
     Achievement(

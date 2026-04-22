@@ -1,5 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
@@ -13,31 +14,33 @@ class NotificationService {
   Future<void> init() async {
     tz_data.initializeTimeZones();
 
-    const androidSettings =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
+    tz.setLocalLocation(tz.getLocation('Asia/Kuala_Lumpur'));
 
-    const iosSettings = DarwinInitializationSettings(
+    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const ios = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
 
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
+    await _plugin.initialize(
+      settings: const InitializationSettings(
+        android: android,
+        iOS: ios,
+      ),
     );
 
-    await _plugin.initialize(settings: initSettings);
+    try {
+      final granted = await _plugin
+          .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
 
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestExactAlarmsPermission();
+      debugPrint('Notification permission granted: $granted');
+      debugPrint('Timezone local: ${tz.local.name}');
+    } catch (e) {
+      debugPrint('Notification permission error: $e');
+    }
   }
 
   Future<void> showNow({
@@ -66,25 +69,41 @@ class NotificationService {
     required String body,
     required DateTime triggerTime,
   }) async {
-    final scheduledDate = tz.TZDateTime.from(triggerTime, tz.local);
+    try {
+      debugPrint('========== SCHEDULE REMINDER ==========');
+      debugPrint('Now: ${DateTime.now()}');
+      debugPrint('TriggerTime: $triggerTime');
+      debugPrint('tz.local: ${tz.local.name}');
 
-    await _plugin.zonedSchedule(
-      id: id,
-      title: title,
-      body: body,
-      scheduledDate: scheduledDate,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'edunova_reminders',
-          'Study Reminders',
-          channelDescription: 'Reminder notifications for study tasks',
-          importance: Importance.high,
-          priority: Priority.high,
+      final scheduledDate = tz.TZDateTime.from(triggerTime, tz.local);
+      debugPrint('ScheduledDate: $scheduledDate');
+
+      await _plugin.zonedSchedule(
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: scheduledDate,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'edunova_reminders',
+            'Study Reminders',
+            channelDescription: 'Reminder notifications for study tasks',
+            importance: Importance.max,
+            priority: Priority.max,
+          ),
+          iOS: DarwinNotificationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-    );
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+
+      final pending = await _plugin.pendingNotificationRequests();
+      debugPrint('Pending count: ${pending.length}');
+      for (final p in pending) {
+        debugPrint('Pending -> ${p.id}, ${p.title}, ${p.body}');
+      }
+    } catch (e) {
+      debugPrint('Schedule notification error: $e');
+    }
   }
 
   Future<void> cancelReminder(int id) async {

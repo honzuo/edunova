@@ -1,3 +1,11 @@
+/// goal_screen.dart — Study goal management with progress tracking.
+///
+/// Allows users to create goals for:
+/// - Weekly/monthly study hours
+/// - Daily completed tasks
+/// - Study streaks
+/// Shows progress bars and completion status for each goal.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/goal_provider.dart';
@@ -73,6 +81,7 @@ class GoalScreen extends StatelessWidget {
   }[t] ?? t;
 
   void _addGoal(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController();
     final targetCtrl = TextEditingController();
     String type = 'weekly_hours';
@@ -83,35 +92,55 @@ class GoalScreen extends StatelessWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Padding(
         padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          const Align(alignment: Alignment.centerLeft, child: Text('New Goal', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
-          const SizedBox(height: 16),
-          TextField(controller: titleCtrl, decoration: const InputDecoration(hintText: 'Goal title')),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<String>(value: type,
-            decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
-            items: const [
-              DropdownMenuItem(value: 'weekly_hours', child: Text('Weekly Study Hours')),
-              DropdownMenuItem(value: 'monthly_hours', child: Text('Monthly Study Hours')),
-              DropdownMenuItem(value: 'daily_tasks', child: Text('Daily Tasks')),
-              DropdownMenuItem(value: 'streak', child: Text('Study Streak')),
-            ], onChanged: (v) => setSt(() => type = v!)),
-          const SizedBox(height: 10),
-          TextField(controller: targetCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'Target value')),
-          const SizedBox(height: 20),
-          ElevatedButton(onPressed: () {
-            final t = titleCtrl.text.trim();
-            final v = int.tryParse(targetCtrl.text.trim()) ?? 0;
-            if (t.isEmpty || v <= 0) return;
-            final now = DateTime.now();
-            context.read<GoalProvider>().addGoal(title: t, goalType: type, targetValue: v,
-                startDate: now, endDate: type.contains('weekly') ? now.add(const Duration(days: 7)) : now.add(const Duration(days: 30)));
-            Navigator.pop(ctx);
-          }, child: const Text('Create Goal')),
-        ]),
+        child: Form(
+          key: formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            const Align(alignment: Alignment.centerLeft, child: Text('New Goal', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(hintText: 'Goal title'),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a goal title' : null,
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(value: type,
+              decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+              items: const [
+                DropdownMenuItem(value: 'weekly_hours', child: Text('Weekly Study Hours')),
+                DropdownMenuItem(value: 'monthly_hours', child: Text('Monthly Study Hours')),
+                DropdownMenuItem(value: 'daily_tasks', child: Text('Daily Tasks')),
+                DropdownMenuItem(value: 'streak', child: Text('Study Streak')),
+              ], onChanged: (v) => setSt(() => type = v!)),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: targetCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(hintText: 'Target value'),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Please enter a target value';
+                final n = int.tryParse(v.trim());
+                if (n == null || n <= 0) return 'Target must be a positive number';
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+              final now = DateTime.now();
+              context.read<GoalProvider>().addGoal(
+                title: titleCtrl.text.trim(),
+                goalType: type,
+                targetValue: int.parse(targetCtrl.text.trim()),
+                startDate: now,
+                endDate: type.contains('weekly') ? now.add(const Duration(days: 7)) : now.add(const Duration(days: 30)),
+              );
+              Navigator.pop(ctx);
+            }, child: const Text('Create Goal')),
+          ]),
+        ),
       )),
-    );
+    ).then((_) { titleCtrl.dispose(); targetCtrl.dispose(); });
   }
 }

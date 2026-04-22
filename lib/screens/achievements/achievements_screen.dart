@@ -1,3 +1,9 @@
+/// achievements_screen.dart — Gamification badges display.
+///
+/// Shows all 12 achievement badges with progress indicators.
+/// Header banner displays total unlocked count and current streak.
+/// Each badge shows current/target values and unlock status.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/achievement_provider.dart';

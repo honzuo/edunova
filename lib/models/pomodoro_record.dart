@@ -1,3 +1,9 @@
+/// pomodoro_record.dart — Data model for a Pomodoro timer record.
+///
+/// Maps to the [pomodoro_records] table. Tracks each focus session
+/// including start/end time, duration, break length, and whether
+/// the session was completed or stopped early.
+
 class PomodoroRecord {
   final int? id;
   final String userId;

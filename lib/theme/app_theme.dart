@@ -1,3 +1,10 @@
+/// app_theme.dart — Application theme configuration (light and dark).
+///
+/// Defines consistent styling across the app following iOS-inspired
+/// design language. Configures colors, typography, card styles,
+/// input decorations, button themes, and navigation bar appearance
+/// for both light and dark modes.
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
