@@ -230,7 +230,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               tooltip: 'Scan to Join',
               onPressed: _scanToJoin,
             ),
-            // 下面保留你原本的代码
             if (p.isRunning)
               TextButton(
                   onPressed: () async {
@@ -356,7 +355,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                   style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.bold)),
             ),
 
-          const SizedBox(height: 36), // 保持原有的间距
+          const SizedBox(height: 36),
 
           // Background selector
           Align(alignment: Alignment.centerLeft, child: Text('Background',
@@ -416,19 +415,38 @@ class _TaskSelector extends StatelessWidget {
   }
 
   void _showPicker(BuildContext context, List<StudyTask> tasks) {
-    showModalBottomSheet(context: context, backgroundColor: Theme.of(context).cardTheme.color,
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardTheme.color,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => Padding(padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          const Align(alignment: Alignment.centerLeft, child: Text('Select Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
-          const SizedBox(height: 12),
-          ...tasks.take(8).map((t) => ListTile(contentPadding: EdgeInsets.zero,
-            leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: const Color(0xFF5856D6).withAlpha(15), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.checklist_rounded, size: 18, color: Color(0xFF5856D6))),
-            title: Text(t.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            subtitle: Text(t.subject, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-            onTap: () { onSelect(t); Navigator.pop(ctx); }))])));
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).padding.bottom + 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            const Align(alignment: Alignment.centerLeft, child: Text('Select Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+            const SizedBox(height: 12),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: tasks.take(8).map((t) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: const Color(0xFF5856D6).withAlpha(15), borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.checklist_rounded, size: 18, color: Color(0xFF5856D6))),
+                      title: Text(t.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      subtitle: Text(t.subject, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                      onTap: () { onSelect(t); Navigator.pop(ctx); }
+                  )).toList(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

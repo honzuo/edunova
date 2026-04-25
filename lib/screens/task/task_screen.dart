@@ -11,6 +11,7 @@
 import '../../constants/subjects.dart';
 import '../../models/subject.dart';
 import 'dart:io';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -87,7 +88,6 @@ class _TaskScreenState extends State<TaskScreen> {
 
   // ── Complete Task with Photo Proof (Camera Access) ──
   Future<void> _completeTaskWithPhoto(dynamic task) async {
-    // 1. 先问用户要不要拍照
     final wantPhoto = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -112,12 +112,10 @@ class _TaskScreenState extends State<TaskScreen> {
     );
 
     if (wantPhoto != true) {
-      // 用户不想拍照，直接标记任务完成即可
       context.read<TaskProvider>().toggleComplete(task);
       return;
     }
 
-    // 2. 调用相机
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? photo = await picker.pickImage(
@@ -129,35 +127,29 @@ class _TaskScreenState extends State<TaskScreen> {
         if (!mounted) return;
         HapticFeedback.mediumImpact();
 
-        // --- 加上这行加载提示 ---
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Uploading proof... Please wait.')),
         );
 
-        // --- 调用 DatabaseService 来上传照片和更新数据库 ---
         try {
-          // 这里的 task.id 请根据你实际的 Task Model 属性名修改
           await DatabaseService().uploadProofAndUpdateTask(File(photo.path), task.id);
         } catch (e) {
-          debugPrint('Upload Error: $e'); // 在终端打印完整错误
+          debugPrint('Upload Error: $e');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')), // 把详细错误显示在手机屏幕上
+            SnackBar(content: Text('Error: $e')),
           );
           return;
         }
 
-        // 3. 拍照并上传成功，弹出奖励展示框
         if (!mounted) return;
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('🏆 Awesome Work!', style: TextStyle(fontWeight: FontWeight.bold)),
-            // ... (这里保留你原本写好的弹窗 UI 代码)
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  // 刷新列表，让任务自动跑到 "Done" 的分类去
                   context.read<TaskProvider>().loadTasks();
                 },
                 child: const Text('Done', style: TextStyle(color: Color(0xFF5856D6), fontWeight: FontWeight.bold)),
@@ -571,6 +563,10 @@ class _TaskScreenState extends State<TaskScreen> {
     String priority = 'Medium';
     DateTime deadline = _selectedDate;
 
+    // ── 语音识别专用的变量 ──
+    final stt.SpeechToText speech = stt.SpeechToText();
+    bool isListening = false;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -586,15 +582,61 @@ class _TaskScreenState extends State<TaskScreen> {
             const Align(alignment: Alignment.centerLeft,
                 child: Text('New Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
             const SizedBox(height: 16),
+
+            // ── 带有麦克风的标题输入框 ──
             TextFormField(
               controller: titleCtrl,
-              decoration: const InputDecoration(hintText: 'Title'),
+              decoration: InputDecoration(
+                hintText: 'Title (e.g., Do Math Homework)',
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                    color: isListening ? const Color(0xFFFF3B30) : const Color(0xFF5856D6),
+                  ),
+                  tooltip: 'Tap to speak',
+                  onPressed: () async {
+                    HapticFeedback.lightImpact();
+                    if (!isListening) {
+                      // 开启语音识别
+                      bool available = await speech.initialize(
+                        onStatus: (val) {
+                          if (val == 'done' || val == 'notListening') {
+                            if (mounted) setSt(() => isListening = false);
+                          }
+                        },
+                        onError: (val) => debugPrint('onError: $val'),
+                      );
+                      if (available) {
+                        setSt(() => isListening = true);
+                        speech.listen(
+                          onResult: (val) => setSt(() {
+                            titleCtrl.text = val.recognizedWords;
+                          }),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Speech recognition not available on this device.')),
+                        );
+                      }
+                    } else {
+                      // 停止语音识别
+                      setSt(() => isListening = false);
+                      speech.stop();
+                    }
+                  },
+                ),
+              ),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
             ),
+
             const SizedBox(height: 10),
             TextFormField(controller: descCtrl, decoration: const InputDecoration(hintText: 'Description')),
             const SizedBox(height: 10),
-            DropdownButtonFormField<String>(value: _subjectNames.contains(selectedSubject) ? selectedSubject : (_subjectNames.isNotEmpty ? _subjectNames.first : null), decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)), items: _subjectNames.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(), onChanged: (v) => setSt(() => selectedSubject = v ?? ''),
+            DropdownButtonFormField<String>(
+              value: _subjectNames.contains(selectedSubject) ? selectedSubject : (_subjectNames.isNotEmpty ? _subjectNames.first : null),
+              decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+              items: _subjectNames.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(),
+              onChanged: (v) => setSt(() => selectedSubject = v ?? ''),
               validator: (v) => (v == null || v.isEmpty) ? 'Please select a subject' : null,
             ),
             const SizedBox(height: 10),
@@ -645,7 +687,12 @@ class _TaskScreenState extends State<TaskScreen> {
           ]),
         ),
       )),
-    ).then((_) { titleCtrl.dispose(); descCtrl.dispose(); });
+    ).then((_) {
+      // 弹窗关闭时记得销毁控制器和停止语音
+      titleCtrl.dispose();
+      descCtrl.dispose();
+      if (isListening) speech.stop();
+    });
   }
 
   void _showEditSheet(StudyTask task) {

@@ -41,13 +41,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// Validate and login.
   Future<void> _login() async {
-    await NotificationService().showNow(title: 'title', body: 'body');
-    await NotificationService().scheduleReminder(
-      id: 10,
-      title: 'Test Reminder',
-      body: 'This should appear in 1 minutes',
-      triggerTime: DateTime.now().add(const Duration(seconds: 20)),
-    );
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     final r = await AuthService().login(
@@ -280,8 +273,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: cs.primary.withAlpha(25),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Icon(Icons.school_rounded,
-                      size: 40, color: cs.primary),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset('assets/logo.png'),
+                  ),
                 ),
                 const SizedBox(height: 20),
 

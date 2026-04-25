@@ -340,6 +340,23 @@ class DatabaseService {
     await _supa.from('study_locations').delete().eq('id', id);
   }
 
+  // ═══════════════════════════════════════
+  // ── LEADERBOARD (Supabase View) ──
+  // ═══════════════════════════════════════
+
+  /// Fetch the top 10 students with the most focus time.
+  Future<List<Map<String, dynamic>>> getLeaderboard() async {
+    try {
+      return await _supa
+          .from('leaderboard_view') // 直接读取我们刚刚在云端建好的视图！
+          .select()
+          .limit(10); // 只拿全校前 10 名，节约流量
+    } catch (e) {
+      debugPrint("Leaderboard Error: $e");
+      return [];
+    }
+  }
+
   // ╔══════════════════════════════════════════════════════════╗
   // ║           SQLITE — Local-only operations                 ║
   // ║  For: achievements, study_goals, reminder_rules,         ║

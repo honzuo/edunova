@@ -18,6 +18,7 @@ import '../../providers/session_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../widgets/progress_bar_chart.dart';
 import '../../widgets/heatmap_calendar.dart';
+import 'leaderboard_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -63,10 +64,23 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          const SliverAppBar(
+          SliverAppBar(
             floating: true,
             snap: true,
-            title: Text('Progress'),
+            title: const Text('Progress'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD700)),
+                tooltip: 'Leaderboard',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LeaderboardScreen()),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
           SliverToBoxAdapter(
             child: Padding(

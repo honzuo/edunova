@@ -7,6 +7,8 @@
 /// This feature utilises mobile-unique hardware (GPS sensor) as
 /// required by the assignment rubric for advanced features.
 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -208,6 +210,63 @@ class _StudyLocationScreenState extends State<StudyLocationScreen> {
     }
   }
 
+  // ── Fetch Weather Web API (Advanced Feature) ──
+  Future<void> _checkWeather(double lat, double lon, String locName) async {
+    final scaffoldMsg = ScaffoldMessenger.of(context);
+    scaffoldMsg.showSnackBar(
+      const SnackBar(content: Text('☁️ Fetching live weather data...'), duration: Duration(seconds: 1)),
+    );
+
+    try {
+      final url = Uri.parse('https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        final data = json.decode(response.body);
+        final current = data['current_weather'];
+        final temp = current['temperature'];
+        final windSpeed = current['windspeed'];
+
+        // 判断天气状况给个小建议
+        String suggestion = temp > 30 ? 'It is quite hot! A library with AC is recommended. 🥶' : 'Great weather for studying anywhere! ☀️';
+
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Weather at $locName', style: const TextStyle(fontWeight: FontWeight.bold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text('🌡️ ', style: TextStyle(fontSize: 24)),
+                    Text('$temp °C', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('💨 Wind Speed: $windSpeed km/h'),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: const Color(0xFF5AC8FA).withAlpha(20), borderRadius: BorderRadius.circular(8)),
+                  child: Text(suggestion, style: const TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.w500)),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      scaffoldMsg.showSnackBar(const SnackBar(content: Text('Failed to fetch weather. Check internet.')));
+    }
+  }
+
   // ═══════════════════════════════
   // ── Build UI ──
   // ═══════════════════════════════
@@ -398,59 +457,64 @@ class _StudyLocationScreenState extends State<StudyLocationScreen> {
                                 itemCount: _locations.length,
                                 separatorBuilder: (_, __) =>
                                     const SizedBox(height: 6),
-                                itemBuilder: (_, i) {
-                                  final loc = _locations[i];
-                                  final lat = (loc['latitude'] as num?)
-                                          ?.toDouble() ??
-                                      0;
-                                  final lng = (loc['longitude'] as num?)
-                                          ?.toDouble() ??
-                                      0;
-                                  return Card(
-                                    child: ListTile(
-                                      leading: Container(
-                                        width: 40,
-                                        height: 40,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFF9500)
-                                              .withAlpha(20),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: const Icon(
-                                          Icons.location_on_rounded,
-                                          size: 22,
-                                          color: Color(0xFFFF9500),
-                                        ),
-                                      ),
-                                      title: Text(
-                                        loc['label'] as String? ??
-                                            'Study Spot',
-                                        style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600),
-                                      ),
-                                      subtitle: Text(
-                                        '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[500]),
-                                      ),
-                                      trailing: IconButton(
-                                        icon: Icon(
-                                            Icons.delete_outline_rounded,
-                                            size: 20,
-                                            color: Colors.grey[400]),
-                                        onPressed: () => _deleteLocation(
-                                            (loc['id'] as num).toInt()),
-                                      ),
-                                      onTap: () {
-                                        _mapCtrl.move(
-                                            LatLng(lat, lng), 16);
-                                      },
+                          itemBuilder: (_, i) {
+                            final loc = _locations[i];
+                            final lat = (loc['latitude'] as num?)?.toDouble() ?? 0;
+                            final lng = (loc['longitude'] as num?)?.toDouble() ?? 0;
+
+                            return Card(
+                              child: ListTile(
+                                leading: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF9500).withAlpha(20),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.location_on_rounded,
+                                    size: 22,
+                                    color: Color(0xFFFF9500),
+                                  ),
+                                ),
+                                title: Text(
+                                  loc['label'] as String? ?? 'Study Spot',
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                                subtitle: Text(
+                                  '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[500]),
+                                ),
+
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.cloud_outlined, color: Color(0xFF5AC8FA)),
+                                      tooltip: 'Check Weather',
+                                      onPressed: () => _checkWeather(lat, lng, loc['label'] as String? ?? 'this spot'),
                                     ),
-                                  );
+                                    IconButton(
+                                      icon: Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 20,
+                                          color: Colors.grey[400]),
+                                      onPressed: () => _deleteLocation(
+                                          (loc['id'] as num).toInt()),
+                                    ),
+                                  ],
+                                ),
+
+                                onTap: () {
+                                  _mapCtrl.move(LatLng(lat, lng), 16);
                                 },
+                              ),
+                            );
+                          },
                               ),
                       ),
                     ],
