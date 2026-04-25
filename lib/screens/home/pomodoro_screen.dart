@@ -9,10 +9,14 @@
 /// - Start/pause/reset controls with haptic feedback
 
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../models/study_task.dart';
 import '../../providers/pomodoro_provider.dart';
 import '../../providers/task_provider.dart';
@@ -29,6 +33,9 @@ class PomodoroScreen extends StatefulWidget {
 class _PomodoroScreenState extends State<PomodoroScreen> {
   int _bgIdx = 0;
   VideoPlayerController? _videoCtrl;
+  StreamSubscription<AccelerometerEvent>? _accelSub;
+  bool _isStrictMode = false;
+  int _distractionCount = 0;
 
   static const _bgThemes = [
     {'name': 'Default', 'icon': Icons.brightness_auto_rounded, 'video': ''},
@@ -46,7 +53,60 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   }
 
   @override
-  void dispose() { _videoCtrl?.dispose(); super.dispose(); }
+  void dispose() {
+    _accelSub?.cancel();
+    _videoCtrl?.dispose();
+    super.dispose();
+  }
+
+  void _toggleStrictMode(bool value) {
+    setState(() {
+      _isStrictMode = value;
+      if (_isStrictMode) {
+        _distractionCount = 0;
+        _startSensor();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('🔥 Strict mode enabled: Place phone face down to start focusing!')),
+        );
+      } else {
+        _accelSub?.cancel();
+      }
+    });
+  }
+
+  void _startSensor() {
+    _accelSub = accelerometerEventStream().listen((AccelerometerEvent event) {
+      if (!mounted) return;
+      final p = context.read<PomodoroProvider>();
+
+      // Face down
+      if (event.z < -8.0 && !p.isRunning && p.secondsLeft > 0) {
+        HapticFeedback.vibrate(); // 震动反馈
+        p.start();
+      }
+      // Face up during focus
+      else if (event.z > 8.0 && p.isRunning && _isStrictMode) {
+        p.pause();
+        HapticFeedback.heavyImpact();
+        setState(() => _distractionCount++);
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('😡 Caught you!'),
+            content: Text('Why did you pick up your phone? Get back to studying!\n\nDistractions: $_distractionCount'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('I will put it back', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+      }
+    });
+  }
 
   bool get _hasBg => _bgIdx > 0;
 
@@ -73,6 +133,77 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
     }
   }
 
+  // generate QR code
+  void _showQRCode() {
+    final p = context.read<PomodoroProvider>();
+    final qrData = 'pomodoro:${p.selectedMinutes}:${p.linkedTask?.title ?? "Group Study"}';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('Invite Friends', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        content: SizedBox(
+          width: 240,
+          height: 240,
+          child: QrImageView(
+            data: qrData,
+            version: QrVersions.auto,
+            size: 240.0,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // open camera
+  void _scanToJoin() {
+    bool hasDetected = false;
+
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (innerCtx) => Scaffold(
+        appBar: AppBar(title: const Text('Scan to Join')),
+        body: MobileScanner(
+          onDetect: (capture) {
+            if (hasDetected) return;
+
+            final List<Barcode> barcodes = capture.barcodes;
+            for (final barcode in barcodes) {
+              final data = barcode.rawValue;
+              if (data != null && data.startsWith('pomodoro:')) {
+                hasDetected = true;
+
+                Navigator.pop(innerCtx);
+
+                final parts = data.split(':');
+                final mins = int.tryParse(parts[1]) ?? 25;
+                final taskName = parts.length > 2 ? parts[2] : 'Focus';
+
+                final p = context.read<PomodoroProvider>();
+                p.setDuration(mins);
+                HapticFeedback.vibrate();
+                p.start();
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('🔥 Successfully joined! Goal: $taskName, $mins mins')),
+                  );
+                }
+                break;
+              }
+            }
+          },
+        ),
+      ),
+    ));
+  }
+
   String _fmt(int s) => '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
   @override
@@ -83,10 +214,33 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
     return Scaffold(
       extendBodyBehindAppBar: _hasBg,
-      appBar: AppBar(backgroundColor: _hasBg ? Colors.transparent : null, elevation: 0,
-        foregroundColor: fg, title: Text('Focus', style: TextStyle(color: fg)),
-        actions: [if (p.isRunning) TextButton(onPressed: () async { await p.stopAll(); if (context.mounted) Navigator.pop(context); },
-          child: const Text('End', style: TextStyle(color: Colors.red)))]),
+      appBar: AppBar(
+          backgroundColor: _hasBg ? Colors.transparent : null,
+          elevation: 0,
+          foregroundColor: fg,
+          title: Text('Focus', style: TextStyle(color: fg)),
+          actions: [
+            if (!p.isRunning) IconButton(
+              icon: const Icon(Icons.qr_code_2_rounded),
+              tooltip: 'Generate Room Code',
+              onPressed: _showQRCode,
+            ),
+            if (!p.isRunning) IconButton(
+              icon: const Icon(Icons.document_scanner_rounded),
+              tooltip: 'Scan to Join',
+              onPressed: _scanToJoin,
+            ),
+            // 下面保留你原本的代码
+            if (p.isRunning)
+              TextButton(
+                  onPressed: () async {
+                    await p.stopAll();
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  child: const Text('End', style: TextStyle(color: Colors.red))
+              )
+          ]
+      ),
       body: Stack(children: [
         // ── Video background ──
         if (_hasBg && _videoCtrl != null && _videoCtrl!.value.isInitialized)
@@ -157,6 +311,52 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             AnimatedOpacity(opacity: p.isRunning ? 1 : 0, duration: const Duration(milliseconds: 200),
               child: _circBtn(Icons.skip_next_rounded, p.isRunning ? () { HapticFeedback.lightImpact(); p.reset(); } : () {}, 48))]),
           const SizedBox(height: 36),
+
+          // ── Strict Mode Toggle (Flip to Focus) ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: _hasBg ? Colors.white.withAlpha(20) : cs.primary.withAlpha(10),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _hasBg ? Colors.white30 : cs.primary.withAlpha(30)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.screen_rotation_rounded,
+                        color: _isStrictMode ? const Color(0xFFFF9500) : (_hasBg ? Colors.white70 : Colors.grey[600])),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Strict Mode', style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600,
+                            color: _hasBg ? Colors.white : cs.onSurface)),
+                        Text('Flip phone face down to start', style: TextStyle(
+                            fontSize: 12, color: _hasBg ? Colors.white60 : Colors.grey[500])),
+                      ],
+                    ),
+                  ],
+                ),
+                Switch(
+                  value: _isStrictMode,
+                  onChanged: _toggleStrictMode,
+                  activeColor: const Color(0xFFFF9500),
+                ),
+              ],
+            ),
+          ),
+
+          if (_isStrictMode && _distractionCount > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text('Distractions: $_distractionCount',
+                  style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.bold)),
+            ),
+
+          const SizedBox(height: 36), // 保持原有的间距
 
           // Background selector
           Align(alignment: Alignment.centerLeft, child: Text('Background',

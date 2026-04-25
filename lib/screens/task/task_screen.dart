@@ -10,6 +10,8 @@
 
 import '../../constants/subjects.dart';
 import '../../models/subject.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -17,6 +19,7 @@ import 'package:provider/provider.dart';
 import '../../models/study_task.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../services/database_service.dart';
 import '../home/pomodoro_screen.dart';
 
 class TaskScreen extends StatefulWidget {
@@ -79,6 +82,97 @@ class _TaskScreenState extends State<TaskScreen> {
       case 'high': return const Color(0xFFFF3B30);
       case 'medium': return const Color(0xFFFF9500);
       default: return const Color(0xFF34C759);
+    }
+  }
+
+  // ── Complete Task with Photo Proof (Camera Access) ──
+  Future<void> _completeTaskWithPhoto(dynamic task) async {
+    // 1. 先问用户要不要拍照
+    final wantPhoto = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('🎉 Task Completed!'),
+        content: const Text('Do you want to capture a photo of your work as proof?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Maybe Later', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.camera_alt_rounded, size: 18),
+            label: const Text('Take Photo'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF5856D6),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (wantPhoto != true) {
+      // 用户不想拍照，直接标记任务完成即可
+      context.read<TaskProvider>().toggleComplete(task);
+      return;
+    }
+
+    // 2. 调用相机
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? photo = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+
+      if (photo != null) {
+        if (!mounted) return;
+        HapticFeedback.mediumImpact();
+
+        // --- 加上这行加载提示 ---
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Uploading proof... Please wait.')),
+        );
+
+        // --- 调用 DatabaseService 来上传照片和更新数据库 ---
+        try {
+          // 这里的 task.id 请根据你实际的 Task Model 属性名修改
+          await DatabaseService().uploadProofAndUpdateTask(File(photo.path), task.id);
+        } catch (e) {
+          debugPrint('Upload Error: $e'); // 在终端打印完整错误
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')), // 把详细错误显示在手机屏幕上
+          );
+          return;
+        }
+
+        // 3. 拍照并上传成功，弹出奖励展示框
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('🏆 Awesome Work!', style: TextStyle(fontWeight: FontWeight.bold)),
+            // ... (这里保留你原本写好的弹窗 UI 代码)
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  // 刷新列表，让任务自动跑到 "Done" 的分类去
+                  context.read<TaskProvider>().loadTasks();
+                },
+                child: const Text('Done', style: TextStyle(color: Color(0xFF5856D6), fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Camera error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to open camera.')),
+        );
+      }
     }
   }
 
@@ -382,7 +476,16 @@ class _TaskScreenState extends State<TaskScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(children: [
               GestureDetector(
-                onTap: () => context.read<TaskProvider>().toggleComplete(task),
+                // ✨ 这里是修复的核心：换成新的判断逻辑！
+                onTap: () {
+                  if (!task.isCompleted) {
+                    // 如果任务没完成，准备打勾，就弹窗问要不要拍照
+                    _completeTaskWithPhoto(task);
+                  } else {
+                    // 如果任务已经完成了，用户想取消打勾，就不需要拍照了
+                    context.read<TaskProvider>().toggleComplete(task);
+                  }
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   width: 24, height: 24,

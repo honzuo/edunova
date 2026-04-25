@@ -14,3 +14,6 @@ flutter pub add image_picker
 flutter pub add crypto uuid http
 flutter pub add crypto uuid http video_player
 flutter pub add geolocator flutter_map latlong2
+flutter pub add sensors_plus
+flutter pub add qr_flutter mobile_scanner
+flutter pub add image_picker

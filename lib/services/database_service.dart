@@ -14,8 +14,10 @@
 /// All important CRUD goes DIRECTLY to Supabase.
 /// SQLite is only for local features (badges, goals, reminders).
 
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
+import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -129,6 +131,35 @@ class DatabaseService {
     await _supa.from('study_tasks').update(clean).eq('id', id);
   }
 
+  // ── Upload Study Proof Photo ──
+  Future<void> uploadProofAndUpdateTask(File photoFile, int taskId) async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      final fileExtension = path.extension(photoFile.path);
+      final fileName = 'task_${taskId}_${DateTime.now().millisecondsSinceEpoch}$fileExtension';
+
+      await supabase.storage
+          .from('task_proofs')
+          .upload(fileName, photoFile);
+
+      final String photoUrl = supabase.storage
+          .from('task_proofs')
+          .getPublicUrl(fileName);
+
+      await supabase.from('study_tasks').update({
+        'is_completed': 1,
+        'proof_photo_path': photoUrl,
+      }).eq('id', taskId);
+
+      debugPrint('Photo uploaded and task updated successfully!');
+
+    } catch (e) {
+      debugPrint('Upload failed: $e');
+      rethrow;
+    }
+  }
+
   // ═══════════════════════════════════════
   // ── SESSIONS (Supabase) ──
   // ═══════════════════════════════════════
@@ -167,10 +198,15 @@ class DatabaseService {
 
   /// Get all pomodoro records for a user.
   Future<List<Map<String, dynamic>>> getPomodorosByUser(String userId) async {
-    return await _supa
-        .from('pomodoro_records')
-        .select()
-        .eq('user_id', userId);
+    try {
+      return await _supa
+          .from('pomodoro_records')
+          .select()
+          .eq('user_id', userId);
+    } catch (e) {
+      debugPrint("Supabase Pomodoro Error: $e");
+      return [];
+    }
   }
 
   // ═══════════════════════════════════════
@@ -211,12 +247,17 @@ class DatabaseService {
 
   /// Get all CGPA records for a user, ordered by year and semester.
   Future<List<Map<String, dynamic>>> getCgpaRecordsByUser(String userId) async {
-    return await _supa
-        .from('cgpa_records')
-        .select()
-        .eq('user_id', userId)
-        .order('year', ascending: true)
-        .order('semester', ascending: true);
+    try {
+      return await _supa
+          .from('cgpa_records')
+          .select()
+          .eq('user_id', userId)
+          .order('year', ascending: true)
+          .order('semester', ascending: true);
+    } catch (e) {
+      debugPrint("Supabase CGPA Error: $e");
+      return [];
+    }
   }
 
   /// Update a CGPA record by its Supabase ID.

@@ -245,12 +245,11 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     ).then((resultMsg) {
-      emailC.dispose();
-      newPassC.dispose();
-      confirmC.dispose();
-      // Show snackbar AFTER bottom sheet is fully closed
-      if (resultMsg != null && mounted) {
-        _snack(resultMsg);
+      if (!mounted) return;
+      if (resultMsg != null) {
+        Future.microtask(() {
+          if (mounted) _snack(resultMsg);
+        });
       }
     });
   }
