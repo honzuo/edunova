@@ -12,7 +12,6 @@ class NotificationService {
 
   Future<void> init() async {
     tz_data.initializeTimeZones();
-    // 设置本地时区
     tz.setLocalLocation(tz.getLocation('Asia/Kuala_Lumpur'));
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -33,9 +32,7 @@ class NotificationService {
       final implementation = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
 
-      // 请求 Android 13+ 通知权限
       await implementation?.requestNotificationsPermission();
-      // 请求 Android 12+ 精确闹钟权限
       await implementation?.requestExactAlarmsPermission();
 
       debugPrint('Notification Service Initialized');
@@ -71,10 +68,8 @@ class NotificationService {
     required DateTime triggerTime,
   }) async {
     try {
-      // 将 DateTime 转换为 TZDateTime
       final scheduledDate = tz.TZDateTime.from(triggerTime, tz.local);
 
-      // 验证时间是否在未来
       if (scheduledDate.isBefore(tz.TZDateTime.now(tz.local))) {
         debugPrint('Error: Trigger time is in the past.');
         return;
@@ -96,8 +91,6 @@ class NotificationService {
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        // 使用 exactAllowWhileIdle 确保在 Android 12+ 上准时弹出
-        // 注意：此处已移除导致报错的 uiLocalNotificationDateInterpretation 参数
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
 

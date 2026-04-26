@@ -223,6 +223,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   // ═══════════════════════════════════════
 
   /// Task completion rate card with circular progress and linear bar.
+  /// Task completion rate card with circular progress and linear bar.
   Widget _buildCompletionCard(dynamic r) {
     return Card(
       child: Padding(
@@ -277,33 +278,123 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             ],
           ),
-          // Show overdue warning if there are overdue tasks
           if (r.overdueTasks > 0) ...[
             const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF3B30).withAlpha(15),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: InkWell(
+                onTap: () => _showOverdueTasks(context),
                 borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.warning_amber_rounded,
-                      size: 16, color: Color(0xFFFF3B30)),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${r.overdueTasks} overdue task${r.overdueTasks > 1 ? 's' : ''}',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFFF3B30)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF3B30).withAlpha(15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFF3B30).withAlpha(30)),
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.warning_amber_rounded,
+                          size: 16, color: Color(0xFFFF3B30)),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${r.overdueTasks} overdue task${r.overdueTasks > 1 ? 's' : ''} (Tap to view)',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFFF3B30)),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
         ]),
+      ),
+    );
+  }
+
+  void _showOverdueTasks(BuildContext context) {
+    final tasks = context.read<TaskProvider>().tasks;
+    final now = DateTime.now();
+    final overdueList = tasks.where((t) => !t.isCompleted && t.deadline.isBefore(now)).toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardTheme.color,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).padding.bottom + 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Overdue Tasks',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFFF3B30),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            if (overdueList.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('Great! No overdue tasks at the moment.'),
+              )
+            else
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: overdueList.map((t) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF3B30).withAlpha(15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 18,
+                          color: Color(0xFFFF3B30),
+                        ),
+                      ),
+                      title: Text(
+                        t.title,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        '${t.subject} • Due: ${t.deadline.day}/${t.deadline.month}/${t.deadline.year}',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                      ),
+                    )).toList(),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
