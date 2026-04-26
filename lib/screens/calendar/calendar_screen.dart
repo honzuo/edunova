@@ -14,6 +14,7 @@ import '../../providers/task_provider.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
+
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
@@ -36,13 +37,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
     for (final task in tasks) {
       final d = task.deadline;
       if (d.year == day.year && d.month == day.month && d.day == day.day) {
-        events.add({'type': 'task', 'title': task.title, 'subtitle': '${task.subject} · ${task.priority}'});
+        events.add({
+          'type': 'task',
+          'title': task.title,
+          'subtitle': '${task.subject} · ${task.priority}'
+        });
       }
     }
     for (final s in sessions) {
       final d = s.startTime;
       if (d.year == day.year && d.month == day.month && d.day == day.day) {
-        events.add({'type': 'session', 'title': s.title, 'subtitle': '${s.subject} · ${s.durationMinutes} min'});
+        events.add({
+          'type': 'session',
+          'title': s.title,
+          'subtitle': '${s.subject} · ${s.durationMinutes} min'
+        });
       }
     }
     return events;
@@ -83,7 +92,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     lastDay: DateTime(2100),
                     focusedDay: _focusedDay,
                     selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                    onDaySelected: (sel, foc) => setState(() { _selectedDay = sel; _focusedDay = foc; }),
+                    onDaySelected: (sel, foc) => setState(() {
+                      _selectedDay = sel;
+                      _focusedDay = foc;
+                    }),
                     calendarFormat: CalendarFormat.month,
                     headerStyle: HeaderStyle(
                       formatButtonVisible: false,
@@ -111,7 +123,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           return Positioned(
                             bottom: 4,
                             child: Container(
-                              width: 5, height: 5,
+                              width: 5,
+                              height: 5,
                               decoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle),
                             ),
                           );
@@ -137,11 +150,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(40),
-                child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.event_available_rounded, size: 44, color: Colors.grey[300]),
-                  const SizedBox(height: 8),
-                  Text('No events', style: TextStyle(color: Colors.grey[400], fontSize: 15)),
-                ])),
+                child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.event_available_rounded, size: 44, color: Colors.grey[300]),
+                    const SizedBox(height: 8),
+                    Text('No events', style: TextStyle(color: Colors.grey[400], fontSize: 15)),
+                  ]),
+                ),
               ),
             )
           else
@@ -157,24 +172,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     key: ValueKey('${e['title']}_$i'),
                     direction: isTask ? DismissDirection.none : DismissDirection.endToStart,
                     background: Container(
-                      alignment: Alignment.centerRight, padding: const EdgeInsets.only(right: 20),
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
                       decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(16)),
                       child: const Icon(Icons.delete_rounded, color: Colors.white),
                     ),
                     confirmDismiss: (_) async {
-                      return await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-                        title: const Text('Delete Session?'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                          TextButton(onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Delete', style: TextStyle(color: Colors.red))),
-                        ],
-                      ));
+                      return await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Delete Session?'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      );
                     },
                     onDismissed: (_) {
                       final session = sessions.firstWhere((s) =>
-                          s.title == e['title'] && s.startTime.year == _selectedDay.year &&
-                          s.startTime.month == _selectedDay.month && s.startTime.day == _selectedDay.day);
+                      s.title == e['title'] &&
+                          s.startTime.year == _selectedDay.year &&
+                          s.startTime.month == _selectedDay.month &&
+                          s.startTime.day == _selectedDay.day);
                       if (session.id != null) context.read<SessionProvider>().removeSession(session.id!);
                     },
                     child: Card(
@@ -182,7 +205,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         padding: const EdgeInsets.all(16),
                         child: Row(children: [
                           Container(
-                            width: 36, height: 36,
+                            width: 36,
+                            height: 36,
                             decoration: BoxDecoration(
                               color: (isTask ? const Color(0xFF5856D6) : const Color(0xFFFF9500)).withAlpha(20),
                               borderRadius: BorderRadius.circular(10),
@@ -194,11 +218,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                           ),
                           const SizedBox(width: 14),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(e['title'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 2),
-                            Text(e['subtitle'] ?? '', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-                          ])),
+                          Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(e['title'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 2),
+                              Text(e['subtitle'] ?? '', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                            ]),
+                          ),
                         ]),
                       ),
                     ),
@@ -218,65 +244,53 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _showAddSessionSheet(BuildContext context) {
-    final formKey = GlobalKey<FormState>();
-    final titleCtrl = TextEditingController();
-    final subjectCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
-    DateTime date = _selectedDay;
-    TimeOfDay start = TimeOfDay.now();
-    TimeOfDay end = TimeOfDay(hour: (TimeOfDay.now().hour + 1) % 24, minute: TimeOfDay.now().minute);
-
     showModalBottomSheet(
-      context: context, isScrollControlled: true,
+      context: context,
+      isScrollControlled: true,
       backgroundColor: Theme.of(context).cardTheme.color,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Padding(
-        padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Form(
-          key: formKey,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 20),
-            const Align(alignment: Alignment.centerLeft,
-                child: Text('New Session', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(hintText: 'Title'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
-            ),
-            const SizedBox(height: 10),
-            TextFormField(controller: subjectCtrl, decoration: const InputDecoration(hintText: 'Subject')),
-            const SizedBox(height: 10),
-            TextFormField(controller: notesCtrl, decoration: const InputDecoration(hintText: 'Notes')),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _timeTile(ctx, 'Start', start, (t) => setSt(() => start = t))),
-              const SizedBox(width: 10),
-              Expanded(child: _timeTile(ctx, 'End', end, (t) => setSt(() => end = t))),
-            ]),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-                final s = DateTime(date.year, date.month, date.day, start.hour, start.minute);
-                final e = DateTime(date.year, date.month, date.day, end.hour, end.minute);
-                if (!e.isAfter(s)) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('End must be after start')));
-                  return;
-                }
-                context.read<SessionProvider>().addSession(
-                  title: titleCtrl.text.trim(), subject: subjectCtrl.text.trim(),
-                  startTime: s, endTime: e, notes: notesCtrl.text.trim(),
-                );
-                Navigator.pop(ctx);
-              },
-              child: const Text('Save Session'),
-            ),
-          ]),
-        ),
-      )),
-    ).then((_) { titleCtrl.dispose(); subjectCtrl.dispose(); notesCtrl.dispose(); });
+      builder: (ctx) => AddSessionBottomSheet(selectedDate: _selectedDay),
+    );
+  }
+} // <--- 之前这里少了一个大括号，导致下面的类被包在里面了！
+
+// ════════════════════════════════════════════════════════════════
+// ── 新增：完全独立的 Session 底部弹窗组件，安全接管生命周期 ──
+// ════════════════════════════════════════════════════════════════
+class AddSessionBottomSheet extends StatefulWidget {
+  final DateTime selectedDate;
+  const AddSessionBottomSheet({super.key, required this.selectedDate});
+
+  @override
+  State<AddSessionBottomSheet> createState() => _AddSessionBottomSheetState();
+}
+
+class _AddSessionBottomSheetState extends State<AddSessionBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleCtrl = TextEditingController();
+  final _subjectCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+
+  late TimeOfDay _start;
+  late TimeOfDay _end;
+
+  @override
+  void initState() {
+    super.initState();
+    _start = TimeOfDay.now();
+    _end = TimeOfDay(
+      hour: (TimeOfDay.now().hour + 1) % 24,
+      minute: TimeOfDay.now().minute,
+    );
+  }
+
+  @override
+  void dispose() {
+    // 弹窗完全消失后才销毁，绝对安全
+    _titleCtrl.dispose();
+    _subjectCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
   }
 
   Widget _timeTile(BuildContext ctx, String label, TimeOfDay time, void Function(TimeOfDay) onPick) {
@@ -296,6 +310,73 @@ class _CalendarScreenState extends State<CalendarScreen> {
           const SizedBox(width: 8),
           Text('$label: ${time.format(ctx)}', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
         ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 20),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('New Session', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _titleCtrl,
+                decoration: const InputDecoration(hintText: 'Title'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(controller: _subjectCtrl, decoration: const InputDecoration(hintText: 'Subject')),
+              const SizedBox(height: 10),
+              TextFormField(controller: _notesCtrl, decoration: const InputDecoration(hintText: 'Notes')),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _timeTile(context, 'Start', _start, (t) => setState(() => _start = t))),
+                  const SizedBox(width: 10),
+                  Expanded(child: _timeTile(context, 'End', _end, (t) => setState(() => _end = t))),
+                ],
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  if (!_formKey.currentState!.validate()) return;
+                  final date = widget.selectedDate;
+                  final s = DateTime(date.year, date.month, date.day, _start.hour, _start.minute);
+                  final e = DateTime(date.year, date.month, date.day, _end.hour, _end.minute);
+                  if (!e.isAfter(s)) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('End must be after start')));
+                    return;
+                  }
+                  context.read<SessionProvider>().addSession(
+                    title: _titleCtrl.text.trim(),
+                    subject: _subjectCtrl.text.trim(),
+                    startTime: s,
+                    endTime: e,
+                    notes: _notesCtrl.text.trim(),
+                  );
+                  Navigator.pop(context);
+                },
+                child: const Text('Save Session'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

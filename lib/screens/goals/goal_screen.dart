@@ -1,14 +1,9 @@
 /// goal_screen.dart — Study goal management with progress tracking.
-///
-/// Allows users to create goals for:
-/// - Weekly/monthly study hours
-/// - Daily completed tasks
-/// - Study streaks
-/// Shows progress bars and completion status for each goal.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/goal_provider.dart';
+import '../../widgets/minimal_empty_state.dart';
 
 class GoalScreen extends StatelessWidget {
   const GoalScreen({super.key});
@@ -20,12 +15,16 @@ class GoalScreen extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(slivers: [
         const SliverAppBar(floating: true, snap: true, title: Text('Study Goals')),
+
         if (goals.isEmpty)
-          const SliverFillRemaining(child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.flag_rounded, size: 56, color: Colors.grey),
-            SizedBox(height: 12),
-            Text('No goals yet', style: TextStyle(color: Colors.grey, fontSize: 16)),
-          ])))
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: MinimalEmptyState(
+              icon: Icons.flag_outlined,
+              title: 'No Goals Yet',
+              subtitle: 'Tap the + button below to set your first study target.',
+            ),
+          )
         else
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -69,7 +68,15 @@ class GoalScreen extends StatelessWidget {
       ]),
       floatingActionButton: FloatingActionButton(
         heroTag: "fab_goal",
-        onPressed: () => _addGoal(context),
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Theme.of(context).cardTheme.color,
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+            builder: (ctx) => const AddGoalBottomSheet(), // 调用独立的组件
+          );
+        },
         child: const Icon(Icons.add_rounded),
       ),
     );
@@ -79,43 +86,60 @@ class GoalScreen extends StatelessWidget {
     'weekly_hours': 'Weekly Study Hours', 'monthly_hours': 'Monthly Study Hours',
     'daily_tasks': 'Daily Completed Tasks', 'streak': 'Study Streak (Days)',
   }[t] ?? t;
+}
 
-  void _addGoal(BuildContext context) {
-    final formKey = GlobalKey<FormState>();
-    final titleCtrl = TextEditingController();
-    final targetCtrl = TextEditingController();
-    String type = 'weekly_hours';
+class AddGoalBottomSheet extends StatefulWidget {
+  const AddGoalBottomSheet({super.key});
 
-    showModalBottomSheet(
-      context: context, isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardTheme.color,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Padding(
-        padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+  @override
+  State<AddGoalBottomSheet> createState() => _AddGoalBottomSheetState();
+}
+
+class _AddGoalBottomSheetState extends State<AddGoalBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleCtrl = TextEditingController();
+  final _targetCtrl = TextEditingController();
+  String _type = 'weekly_hours';
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _targetCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: SingleChildScrollView(
         child: Form(
-          key: formKey,
+          key: _formKey,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 20),
             const Align(alignment: Alignment.centerLeft, child: Text('New Goal', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
             const SizedBox(height: 16),
             TextFormField(
-              controller: titleCtrl,
+              controller: _titleCtrl,
               decoration: const InputDecoration(hintText: 'Goal title'),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a goal title' : null,
             ),
             const SizedBox(height: 10),
-            DropdownButtonFormField<String>(value: type,
+            DropdownButtonFormField<String>(
+              value: _type,
               decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
               items: const [
                 DropdownMenuItem(value: 'weekly_hours', child: Text('Weekly Study Hours')),
                 DropdownMenuItem(value: 'monthly_hours', child: Text('Monthly Study Hours')),
                 DropdownMenuItem(value: 'daily_tasks', child: Text('Daily Tasks')),
                 DropdownMenuItem(value: 'streak', child: Text('Study Streak')),
-              ], onChanged: (v) => setSt(() => type = v!)),
+              ],
+              onChanged: (v) => setState(() => _type = v!),
+            ),
             const SizedBox(height: 10),
             TextFormField(
-              controller: targetCtrl,
+              controller: _targetCtrl,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(hintText: 'Target value'),
               validator: (v) {
@@ -126,21 +150,24 @@ class GoalScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: 20),
-            ElevatedButton(onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              final now = DateTime.now();
-              context.read<GoalProvider>().addGoal(
-                title: titleCtrl.text.trim(),
-                goalType: type,
-                targetValue: int.parse(targetCtrl.text.trim()),
-                startDate: now,
-                endDate: type.contains('weekly') ? now.add(const Duration(days: 7)) : now.add(const Duration(days: 30)),
-              );
-              Navigator.pop(ctx);
-            }, child: const Text('Create Goal')),
+            ElevatedButton(
+              onPressed: () {
+                if (!_formKey.currentState!.validate()) return;
+                final now = DateTime.now();
+                context.read<GoalProvider>().addGoal(
+                  title: _titleCtrl.text.trim(),
+                  goalType: _type,
+                  targetValue: int.parse(_targetCtrl.text.trim()),
+                  startDate: now,
+                  endDate: _type.contains('weekly') ? now.add(const Duration(days: 7)) : now.add(const Duration(days: 30)),
+                );
+                Navigator.pop(context);
+              },
+              child: const Text('Create Goal'),
+            ),
           ]),
         ),
-      )),
-    ).then((_) { titleCtrl.dispose(); targetCtrl.dispose(); });
+      ),
+    );
   }
 }

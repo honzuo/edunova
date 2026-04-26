@@ -17,6 +17,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
+import '../../widgets/minimal_empty_state.dart'; // 引入极简空状态组件
 
 class StudyLocationScreen extends StatefulWidget {
   const StudyLocationScreen({super.key});
@@ -79,8 +80,7 @@ class _StudyLocationScreenState extends State<StudyLocationScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Location permission permanently denied. '
-                  'Please enable in device settings.'),
+              content: Text('Location permission permanently denied. Please enable in device settings.'),
             ),
           );
         }
@@ -119,52 +119,11 @@ class _StudyLocationScreenState extends State<StudyLocationScreen> {
       if (_currentPosition == null) return;
     }
 
-    // Show dialog to enter a label for this spot
-    final labelCtrl = TextEditingController();
+    // 👇 调起独立安全的 Dialog 组件
     final label = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Save Study Spot'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '${_currentPosition!.latitude.toStringAsFixed(5)}, '
-              '${_currentPosition!.longitude.toStringAsFixed(5)}',
-              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: labelCtrl,
-              decoration: const InputDecoration(
-                hintText: 'Label (e.g. Library, Cafe)',
-                prefixIcon: Icon(Icons.label_outline_rounded, size: 20),
-              ),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(
-              ctx,
-              labelCtrl.text.trim().isEmpty
-                  ? 'Study Spot'
-                  : labelCtrl.text.trim(),
-            ),
-            style: ElevatedButton.styleFrom(
-                minimumSize: const Size(0, 40)),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      builder: (ctx) => SaveLocationDialog(position: _currentPosition!),
     );
-
-    labelCtrl.dispose();
 
     if (label == null) return; // User cancelled
 
@@ -199,8 +158,7 @@ class _StudyLocationScreenState extends State<StudyLocationScreen> {
               child: const Text('Cancel')),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child:
-                  const Text('Delete', style: TextStyle(color: Colors.red))),
+              child: const Text('Delete', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -228,7 +186,6 @@ class _StudyLocationScreenState extends State<StudyLocationScreen> {
         final temp = current['temperature'];
         final windSpeed = current['windspeed'];
 
-        // 判断天气状况给个小建议
         String suggestion = temp > 30 ? 'It is quite hot! A library with AC is recommended. 🥶' : 'Great weather for studying anywhere! ☀️';
 
         showDialog(
@@ -291,8 +248,7 @@ class _StudyLocationScreenState extends State<StudyLocationScreen> {
               await _getCurrentLocation();
               if (_currentPosition != null) {
                 _mapCtrl.move(
-                  LatLng(
-                      _currentPosition!.latitude, _currentPosition!.longitude),
+                  LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
                   15,
                 );
               }
@@ -303,230 +259,257 @@ class _StudyLocationScreenState extends State<StudyLocationScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
+        children: [
+          // ── Map (top half) ──
+          Expanded(
+            flex: 3,
+            child: FlutterMap(
+              mapController: _mapCtrl,
+              options: MapOptions(
+                initialCenter: center,
+                initialZoom: 14,
+              ),
               children: [
-                // ── Map (top half) ──
-                Expanded(
-                  flex: 3,
-                  child: FlutterMap(
-                    mapController: _mapCtrl,
-                    options: MapOptions(
-                      initialCenter: center,
-                      initialZoom: 14,
-                    ),
-                    children: [
-                      // OpenStreetMap tile layer
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.edunova.app',
-                        maxZoom: 19,
+                // OpenStreetMap tile layer
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.edunova.app',
+                  maxZoom: 19,
+                ),
+
+                // Markers for saved study locations
+                MarkerLayer(
+                  markers: [
+                    // Current position marker (blue)
+                    if (_currentPosition != null)
+                      Marker(
+                        point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                        width: 40,
+                        height: 40,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: cs.primary.withAlpha(30),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: cs.primary, width: 2),
+                          ),
+                          child: Icon(Icons.person_rounded, size: 20, color: cs.primary),
+                        ),
                       ),
 
-                      // Markers for saved study locations
-                      MarkerLayer(
-                        markers: [
-                          // Current position marker (blue)
-                          if (_currentPosition != null)
-                            Marker(
-                              point: LatLng(_currentPosition!.latitude,
-                                  _currentPosition!.longitude),
-                              width: 40,
-                              height: 40,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: cs.primary.withAlpha(30),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: cs.primary, width: 2),
-                                ),
-                                child: Icon(Icons.person_rounded,
-                                    size: 20, color: cs.primary),
-                              ),
-                            ),
+                    // Saved study spot markers (orange)
+                    ..._locations.map((loc) {
+                      final lat = (loc['latitude'] as num?)?.toDouble() ?? 0;
+                      final lng = (loc['longitude'] as num?)?.toDouble() ?? 0;
+                      return Marker(
+                        point: LatLng(lat, lng),
+                        width: 40,
+                        height: 40,
+                        child: GestureDetector(
+                          onTap: () => _deleteLocation((loc['id'] as num).toInt()),
+                          child: const Icon(
+                            Icons.location_on_rounded,
+                            size: 36,
+                            color: Color(0xFFFF9500),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ],
+            ),
+          ),
 
-                          // Saved study spot markers (orange)
-                          ..._locations.map((loc) {
-                            final lat =
-                                (loc['latitude'] as num?)?.toDouble() ?? 0;
-                            final lng =
-                                (loc['longitude'] as num?)?.toDouble() ?? 0;
-                            return Marker(
-                              point: LatLng(lat, lng),
-                              width: 40,
-                              height: 40,
-                              child: GestureDetector(
-                                onTap: () => _deleteLocation(
-                                    (loc['id'] as num).toInt()),
-                                child: const Icon(
-                                  Icons.location_on_rounded,
-                                  size: 36,
-                                  color: Color(0xFFFF9500),
-                                ),
-                              ),
-                            );
-                          }),
-                        ],
+          // ── Location List (bottom half) ──
+          Expanded(
+            flex: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Study Spots',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: cs.primary.withAlpha(20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${_locations.length}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: cs.primary,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
 
-                // ── Location List (bottom half) ──
+                // GPS status
+                if (_currentPosition != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      '📡 GPS: ${_currentPosition!.latitude.toStringAsFixed(4)}, '
+                          '${_currentPosition!.longitude.toStringAsFixed(4)}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                  ),
+
+                const SizedBox(height: 8),
+
                 Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                        child: Row(
-                          children: [
-                            Text(
-                              'Study Spots',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: cs.onSurface,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: cs.primary.withAlpha(20),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '${_locations.length}',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: cs.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  child: _locations.isEmpty
+                      ? const MinimalEmptyState(
+                    icon: Icons.location_off_rounded,
+                    title: 'No Study Spots Saved',
+                    subtitle: 'Tap the + button to pinpoint your current productive location.',
+                  )
+                      : ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: _locations.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (_, i) {
+                      final loc = _locations[i];
+                      final lat = (loc['latitude'] as num?)?.toDouble() ?? 0;
+                      final lng = (loc['longitude'] as num?)?.toDouble() ?? 0;
 
-                      // GPS status
-                      if (_currentPosition != null)
-                        Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 20),
-                          child: Text(
-                            '📡 GPS: ${_currentPosition!.latitude.toStringAsFixed(4)}, '
-                            '${_currentPosition!.longitude.toStringAsFixed(4)}',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey[500]),
+                      return Card(
+                        child: ListTile(
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF9500).withAlpha(20),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.location_on_rounded,
+                              size: 22,
+                              color: Color(0xFFFF9500),
+                            ),
                           ),
-                        ),
-
-                      const SizedBox(height: 8),
-
-                      // Location list
-                      Expanded(
-                        child: _locations.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.location_off_rounded,
-                                        size: 40, color: Colors.grey[300]),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'No study spots saved yet',
-                                      style: TextStyle(
-                                          color: Colors.grey[400],
-                                          fontSize: 14),
-                                    ),
-                                    Text(
-                                      'Tap + to save your current location',
-                                      style: TextStyle(
-                                          color: Colors.grey[400],
-                                          fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : ListView.separated(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 20),
-                                itemCount: _locations.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 6),
-                          itemBuilder: (_, i) {
-                            final loc = _locations[i];
-                            final lat = (loc['latitude'] as num?)?.toDouble() ?? 0;
-                            final lng = (loc['longitude'] as num?)?.toDouble() ?? 0;
-
-                            return Card(
-                              child: ListTile(
-                                leading: Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFF9500).withAlpha(20),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.location_on_rounded,
-                                    size: 22,
-                                    color: Color(0xFFFF9500),
-                                  ),
-                                ),
-                                title: Text(
-                                  loc['label'] as String? ?? 'Study Spot',
-                                  style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                                subtitle: Text(
-                                  '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[500]),
-                                ),
-
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.cloud_outlined, color: Color(0xFF5AC8FA)),
-                                      tooltip: 'Check Weather',
-                                      onPressed: () => _checkWeather(lat, lng, loc['label'] as String? ?? 'this spot'),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                          Icons.delete_outline_rounded,
-                                          size: 20,
-                                          color: Colors.grey[400]),
-                                      onPressed: () => _deleteLocation(
-                                          (loc['id'] as num).toInt()),
-                                    ),
-                                  ],
-                                ),
-
-                                onTap: () {
-                                  _mapCtrl.move(LatLng(lat, lng), 16);
-                                },
+                          title: Text(
+                            loc['label'] as String? ?? 'Study Spot',
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500]),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.cloud_outlined, color: Color(0xFF5AC8FA)),
+                                tooltip: 'Check Weather',
+                                onPressed: () => _checkWeather(lat, lng, loc['label'] as String? ?? 'this spot'),
                               ),
-                            );
+                              IconButton(
+                                icon: Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 20,
+                                    color: Colors.grey[400]),
+                                onPressed: () => _deleteLocation((loc['id'] as num).toInt()),
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            _mapCtrl.move(LatLng(lat, lng), 16);
                           },
-                              ),
-                      ),
-                    ],
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'fab_location',
         onPressed: _saveCurrentLocation,
         child: const Icon(Icons.add_location_alt_rounded),
       ),
+    );
+  }
+}
+
+class SaveLocationDialog extends StatefulWidget {
+  final Position position;
+  const SaveLocationDialog({super.key, required this.position});
+
+  @override
+  State<SaveLocationDialog> createState() => _SaveLocationDialogState();
+}
+
+class _SaveLocationDialogState extends State<SaveLocationDialog> {
+  final _labelCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _labelCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Save Study Spot'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${widget.position.latitude.toStringAsFixed(5)}, '
+                  '${widget.position.longitude.toStringAsFixed(5)}',
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _labelCtrl,
+              decoration: const InputDecoration(
+                hintText: 'Label (e.g. Library, Cafe)',
+                prefixIcon: Icon(Icons.label_outline_rounded, size: 20),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final text = _labelCtrl.text.trim();
+            Navigator.pop(context, text.isEmpty ? 'Study Spot' : text);
+          },
+          style: ElevatedButton.styleFrom(minimumSize: const Size(0, 40)),
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

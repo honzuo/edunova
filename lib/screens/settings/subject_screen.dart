@@ -7,13 +7,11 @@
 /// Synced to Supabase via [SubjectService].
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../constants/subjects.dart';
 import '../../models/subject.dart';
+import '../../widgets/minimal_empty_state.dart';
 
-/// Subject management screen — full CRUD operations.
-/// Subjects contain: code, name, credit_hour.
 class SubjectScreen extends StatefulWidget {
   const SubjectScreen({super.key});
 
@@ -30,7 +28,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
     _reload();
   }
 
-  /// Reload subjects from the service and update UI
   Future<void> _reload() async {
     await _svc.load();
     if (mounted) {
@@ -38,134 +35,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
     }
   }
 
-  // ── Add/Edit Subject Bottom Sheet ──
-  void _showAddEdit({Subject? editing}) {
-    // Initialize controllers with existing data if editing
-    final codeCtrl = TextEditingController(text: editing?.code ?? '');
-    final nameCtrl = TextEditingController(text: editing?.name ?? '');
-    int creditHour = editing?.creditHour ?? 3;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardTheme.color,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSt) => Padding(
-          padding: EdgeInsets.fromLTRB(
-            24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Top Indicator Line ──
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // ── Sheet Title ──
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  editing != null ? 'Edit Subject' : 'Add Subject',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Subject Code Input ──
-              TextField(
-                controller: codeCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(
-                  hintText: 'Subject Code (e.g. CSC1024)',
-                  prefixIcon: Icon(Icons.tag, size: 20),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // ── Subject Name Input ──
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  hintText: 'Subject Name (e.g. Programming)',
-                  prefixIcon: Icon(Icons.book_outlined, size: 20),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // ── Credit Hours Dropdown ──
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(ctx).inputDecorationTheme.fillColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: creditHour,
-                    isExpanded: true,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Theme.of(ctx).colorScheme.onSurface,
-                    ),
-                    items: [1, 2, 3, 4, 5, 6].map((c) {
-                      return DropdownMenuItem(
-                        value: c,
-                        child: Text('$c Credit Hours'),
-                      );
-                    }).toList(),
-                    onChanged: (v) {
-                      setSt(() => creditHour = v ?? 3);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // ── Save/Update Button ──
-              ElevatedButton(
-                onPressed: () async {
-                  // Validate inputs
-                  if (codeCtrl.text.trim().isEmpty || nameCtrl.text.trim().isEmpty) return;
-
-                  // Save data
-                  if (editing != null) {
-                    await _svc.update(
-                      editing.id!,
-                      code: codeCtrl.text,
-                      name: nameCtrl.text,
-                      creditHour: creditHour,
-                    );
-                  } else {
-                    await _svc.add(
-                      code: codeCtrl.text,
-                      name: nameCtrl.text,
-                      creditHour: creditHour,
-                    );
-                  }
-
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  _reload();
-                },
-                child: Text(editing != null ? 'Update' : 'Add Subject'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Delete Confirmation Dialog ──
   Future<void> _delete(Subject s) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -191,7 +60,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
     }
   }
 
-  // ── Main UI Build ──
   @override
   Widget build(BuildContext context) {
     final subs = _svc.subjects;
@@ -201,26 +69,11 @@ class _SubjectScreenState extends State<SubjectScreen> {
         title: const Text('Subjects'),
       ),
       body: subs.isEmpty
-      // ── Empty State ──
-          ? Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.book_outlined, size: 56, color: Colors.grey[300]),
-            const SizedBox(height: 12),
-            Text(
-              'No subjects yet',
-              style: TextStyle(color: Colors.grey[400], fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap + to add your first subject',
-              style: TextStyle(color: Colors.grey[400], fontSize: 14),
-            ),
-          ],
-        ),
+          ? const MinimalEmptyState(
+        icon: Icons.book_outlined,
+        title: 'No subjects yet',
+        subtitle: 'Tap + to add your first subject',
       )
-      // ── Subject List ──
           : ListView.separated(
         padding: const EdgeInsets.all(20),
         itemCount: subs.length,
@@ -230,12 +83,24 @@ class _SubjectScreenState extends State<SubjectScreen> {
           return Card(
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
-              onTap: () => _showAddEdit(editing: s), // Tap to edit
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Theme.of(context).cardTheme.color,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  builder: (ctx) => AddEditSubjectBottomSheet(
+                    editing: s,
+                    onSaved: _reload,
+                  ),
+                );
+              },
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    // Credit Hour Icon Badge
                     Container(
                       width: 44,
                       height: 44,
@@ -255,8 +120,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
                       ),
                     ),
                     const SizedBox(width: 14),
-
-                    // Subject Details
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,8 +149,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
                         ],
                       ),
                     ),
-
-                    // Delete Button
                     IconButton(
                       icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
                       onPressed: () => _delete(s),
@@ -301,8 +162,151 @@ class _SubjectScreenState extends State<SubjectScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'fab_subject',
-        onPressed: () => _showAddEdit(),
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Theme.of(context).cardTheme.color,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            builder: (ctx) => AddEditSubjectBottomSheet(onSaved: _reload),
+          );
+        },
         child: const Icon(Icons.add_rounded),
+      ),
+    );
+  }
+}
+
+class AddEditSubjectBottomSheet extends StatefulWidget {
+  final Subject? editing;
+  final VoidCallback onSaved;
+
+  const AddEditSubjectBottomSheet({super.key, this.editing, required this.onSaved});
+
+  @override
+  State<AddEditSubjectBottomSheet> createState() => _AddEditSubjectBottomSheetState();
+}
+
+class _AddEditSubjectBottomSheetState extends State<AddEditSubjectBottomSheet> {
+  late final TextEditingController _codeCtrl;
+  late final TextEditingController _nameCtrl;
+  late int _creditHour;
+  final _svc = SubjectService();
+
+  @override
+  void initState() {
+    super.initState();
+    _codeCtrl = TextEditingController(text: widget.editing?.code ?? '');
+    _nameCtrl = TextEditingController(text: widget.editing?.name ?? '');
+    _creditHour = widget.editing?.creditHour ?? 3;
+  }
+
+  @override
+  void dispose() {
+    _codeCtrl.dispose();
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                widget.editing != null ? 'Edit Subject' : 'Add Subject',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _codeCtrl,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                hintText: 'Subject Code (e.g. CSC1024)',
+                prefixIcon: Icon(Icons.tag, size: 20),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(
+                hintText: 'Subject Name (e.g. Programming)',
+                prefixIcon: Icon(Icons.book_outlined, size: 20),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).inputDecorationTheme.fillColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _creditHour,
+                  isExpanded: true,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  items: [1, 2, 3, 4, 5, 6].map((c) {
+                    return DropdownMenuItem(
+                      value: c,
+                      child: Text('$c Credit Hours'),
+                    );
+                  }).toList(),
+                  onChanged: (v) {
+                    setState(() => _creditHour = v ?? 3);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                if (_codeCtrl.text.trim().isEmpty || _nameCtrl.text.trim().isEmpty) return;
+
+                if (widget.editing != null) {
+                  await _svc.update(
+                    widget.editing!.id!,
+                    code: _codeCtrl.text.trim(),
+                    name: _nameCtrl.text.trim(),
+                    creditHour: _creditHour,
+                  );
+                } else {
+                  await _svc.add(
+                    code: _codeCtrl.text.trim(),
+                    name: _nameCtrl.text.trim(),
+                    creditHour: _creditHour,
+                  );
+                }
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  widget.onSaved();
+                }
+              },
+              child: Text(widget.editing != null ? 'Update' : 'Add Subject'),
+            ),
+          ],
+        ),
       ),
     );
   }

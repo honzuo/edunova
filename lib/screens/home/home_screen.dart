@@ -140,7 +140,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Show a loading indicator while data is being fetched
     if (_isLoading) {
       return const Scaffold(
         body: Center(
@@ -166,7 +165,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: RefreshIndicator(
-        // Pull-to-refresh functionality
         onRefresh: _initData,
         child: CustomScrollView(
           slivers: [
@@ -214,7 +212,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (user != null) ...[
                       const SizedBox(height: 16),
                       GestureDetector(
-                        onTap: _showEditGpaGoal,
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Theme.of(context).cardTheme.color,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                            ),
+                            builder: (ctx) => const EditGpaBottomSheet(),
+                          );
+                        },
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -524,87 +532,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ═══════════════════════════════════════
-  // ── Bottom Sheets & Dialogs ──
-  // ═══════════════════════════════════════
-
-  /// Bottom sheet for editing the target GPA.
-  void _showEditGpaGoal() {
-    final ctrl = TextEditingController(
-      text: context.read<UserProvider>().currentUser?.targetGpa.toString() ?? '3.5',
-    );
-    final formKey = GlobalKey<FormState>();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardTheme.color,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Set Target GPA',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: ctrl,
-                autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  hintText: 'e.g. 3.75',
-                  labelText: 'Enter Target GPA (0.0 - 4.0)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'GPA cannot be empty';
-                  final g = double.tryParse(value);
-                  if (g == null) return 'Please enter a valid number';
-                  if (g < 0 || g > 4.0) return 'GPA must be between 0.0 and 4.0';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (formKey.currentState!.validate()) {
-                      final g = double.parse(ctrl.text.trim());
-                      context.read<UserProvider>().setTargetGpa(g);
-                      Navigator.pop(ctx);
-                    }
-                  },
-                  child: const Text('Save Target'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════
   // ── UI Helper Widgets ──
   // ═══════════════════════════════════════
 
@@ -634,7 +561,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Reusable card for quick statistics (e.g., Tasks, Studied, Done).
   Widget _statCard(String label, String value, IconData icon, Color color) {
     return Expanded(
       child: Card(
@@ -665,7 +591,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Circular icon container with tinted background.
   Widget _iconBubble(IconData icon, Color color, {double size = 36}) {
     return Container(
       width: size,
@@ -678,7 +603,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Standard section title text styling.
   Widget _sectionTitle(String title) {
     return Text(
       title,
@@ -690,13 +614,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// The new minimal tool tile layout.
   Widget _minimalToolTile(String label, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque, // Ensures the entire bounding box is clickable
+      behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 68, // Fixed width prevents layout shifting from label text length
+        width: 68,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -723,6 +646,97 @@ class _HomeScreenState extends State<HomeScreen> {
               overflow: TextOverflow.ellipsis,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class EditGpaBottomSheet extends StatefulWidget {
+  const EditGpaBottomSheet({super.key});
+
+  @override
+  State<EditGpaBottomSheet> createState() => _EditGpaBottomSheetState();
+}
+
+class _EditGpaBottomSheetState extends State<EditGpaBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialGpa = context.read<UserProvider>().currentUser?.targetGpa.toString() ?? '3.5';
+    _ctrl = TextEditingController(text: initialGpa);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Set Target GPA',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _ctrl,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  hintText: 'e.g. 3.75',
+                  labelText: 'Enter Target GPA (0.0 - 4.0)',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'GPA cannot be empty';
+                  final g = double.tryParse(value);
+                  if (g == null) return 'Please enter a valid number';
+                  if (g < 0 || g > 4.0) return 'GPA must be between 0.0 and 4.0';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      final g = double.parse(_ctrl.text.trim());
+                      context.read<UserProvider>().setTargetGpa(g);
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('Save Target'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

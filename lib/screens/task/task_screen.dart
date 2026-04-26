@@ -74,7 +74,7 @@ class _TaskScreenState extends State<TaskScreen> {
 
   String _monthName(int month) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[month - 1];
   }
 
@@ -241,8 +241,8 @@ class _TaskScreenState extends State<TaskScreen> {
                         color: selected
                             ? cs.primary
                             : today
-                                ? cs.primary.withAlpha(15)
-                                : Colors.transparent,
+                            ? cs.primary.withAlpha(15)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(16),
                         border: today && !selected
                             ? Border.all(color: cs.primary.withAlpha(50), width: 1.5)
@@ -269,7 +269,6 @@ class _TaskScreenState extends State<TaskScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          // Task count dot
                           if (count > 0)
                             Container(
                               width: 6, height: 6,
@@ -371,7 +370,15 @@ class _TaskScreenState extends State<TaskScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: "fab_task",
-        onPressed: () => _showAddTaskSheet(context),
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Theme.of(context).cardTheme.color,
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+            builder: (ctx) => AddTaskBottomSheet(selectedDate: _selectedDate),
+          );
+        },
         child: const Icon(Icons.add_rounded),
       ),
     );
@@ -463,18 +470,23 @@ class _TaskScreenState extends State<TaskScreen> {
         onDismissed: (_) { if (task.id != null) context.read<TaskProvider>().removeTask(task.id!); },
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _showEditSheet(task),
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Theme.of(context).cardTheme.color,
+              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+              builder: (ctx) => EditTaskBottomSheet(task: task),
+            );
+          },
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(children: [
               GestureDetector(
-                // ✨ 这里是修复的核心：换成新的判断逻辑！
                 onTap: () {
                   if (!task.isCompleted) {
-                    // 如果任务没完成，准备打勾，就弹窗问要不要拍照
                     _completeTaskWithPhoto(task);
                   } else {
-                    // 如果任务已经完成了，用户想取消打勾，就不需要拍照了
                     context.read<TaskProvider>().toggleComplete(task);
                   }
                 },
@@ -554,28 +566,55 @@ class _TaskScreenState extends State<TaskScreen> {
       ),
     );
   }
+}
 
-  void _showAddTaskSheet(BuildContext context) {
-    final formKey = GlobalKey<FormState>();
-    final titleCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    String selectedSubject = _subjectNames.isNotEmpty ? _subjectNames.first : '';
-    String priority = 'Medium';
-    DateTime deadline = _selectedDate;
+class AddTaskBottomSheet extends StatefulWidget {
+  final DateTime selectedDate;
+  const AddTaskBottomSheet({super.key, required this.selectedDate});
 
-    // ── 语音识别专用的变量 ──
-    final stt.SpeechToText speech = stt.SpeechToText();
-    bool isListening = false;
+  @override
+  State<AddTaskBottomSheet> createState() => _AddTaskBottomSheetState();
+}
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardTheme.color,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Padding(
-        padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+
+  String _selectedSubject = '';
+  String _priority = 'Medium';
+  late DateTime _deadline;
+
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _deadline = widget.selectedDate;
+    final subs = SubjectService().names;
+    if (subs.isNotEmpty) {
+      _selectedSubject = subs.first;
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    if (_isListening) _speech.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subs = SubjectService().names;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: SingleChildScrollView(
         child: Form(
-          key: formKey,
+          key: _formKey,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 20),
@@ -583,45 +622,44 @@ class _TaskScreenState extends State<TaskScreen> {
                 child: Text('New Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
             const SizedBox(height: 16),
 
-            // ── 带有麦克风的标题输入框 ──
             TextFormField(
-              controller: titleCtrl,
+              controller: _titleCtrl,
               decoration: InputDecoration(
                 hintText: 'Title (e.g., Do Math Homework)',
                 suffixIcon: IconButton(
                   icon: Icon(
-                    isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                    color: isListening ? const Color(0xFFFF3B30) : const Color(0xFF5856D6),
+                    _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                    color: _isListening ? const Color(0xFFFF3B30) : const Color(0xFF5856D6),
                   ),
                   tooltip: 'Tap to speak',
                   onPressed: () async {
                     HapticFeedback.lightImpact();
-                    if (!isListening) {
-                      // 开启语音识别
-                      bool available = await speech.initialize(
+                    if (!_isListening) {
+                      bool available = await _speech.initialize(
                         onStatus: (val) {
                           if (val == 'done' || val == 'notListening') {
-                            if (mounted) setSt(() => isListening = false);
+                            if (mounted) setState(() => _isListening = false);
                           }
                         },
                         onError: (val) => debugPrint('onError: $val'),
                       );
                       if (available) {
-                        setSt(() => isListening = true);
-                        speech.listen(
-                          onResult: (val) => setSt(() {
-                            titleCtrl.text = val.recognizedWords;
+                        setState(() => _isListening = true);
+                        _speech.listen(
+                          onResult: (val) => setState(() {
+                            _titleCtrl.text = val.recognizedWords;
                           }),
                         );
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Speech recognition not available on this device.')),
-                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Speech recognition not available on this device.')),
+                          );
+                        }
                       }
                     } else {
-                      // 停止语音识别
-                      setSt(() => isListening = false);
-                      speech.stop();
+                      setState(() => _isListening = false);
+                      _speech.stop();
                     }
                   },
                 ),
@@ -630,42 +668,42 @@ class _TaskScreenState extends State<TaskScreen> {
             ),
 
             const SizedBox(height: 10),
-            TextFormField(controller: descCtrl, decoration: const InputDecoration(hintText: 'Description')),
+            TextFormField(controller: _descCtrl, decoration: const InputDecoration(hintText: 'Description')),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              value: _subjectNames.contains(selectedSubject) ? selectedSubject : (_subjectNames.isNotEmpty ? _subjectNames.first : null),
+              value: subs.contains(_selectedSubject) ? _selectedSubject : (subs.isNotEmpty ? subs.first : null),
               decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
-              items: _subjectNames.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(),
-              onChanged: (v) => setSt(() => selectedSubject = v ?? ''),
+              items: subs.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(),
+              onChanged: (v) => setState(() => _selectedSubject = v ?? ''),
               validator: (v) => (v == null || v.isEmpty) ? 'Please select a subject' : null,
             ),
             const SizedBox(height: 10),
             Row(children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: priority,
+                  value: _priority,
                   decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
                   items: ['Low', 'Medium', 'High'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-                  onChanged: (v) => setSt(() => priority = v!),
+                  onChanged: (v) => setState(() => _priority = v!),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: InkWell(
                   onTap: () async {
-                    final d = await showDatePicker(context: ctx, initialDate: deadline, firstDate: DateTime(2024), lastDate: DateTime(2100));
-                    if (d != null) setSt(() => deadline = d);
+                    final d = await showDatePicker(context: context, initialDate: _deadline, firstDate: DateTime(2024), lastDate: DateTime(2100));
+                    if (d != null) setState(() => _deadline = d);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: Theme.of(ctx).inputDecorationTheme.fillColor,
+                      color: Theme.of(context).inputDecorationTheme.fillColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(children: [
                       Icon(Icons.calendar_today_rounded, size: 16, color: Colors.grey[500]),
                       const SizedBox(width: 8),
-                      Text('${deadline.day}/${deadline.month}/${deadline.year}',
+                      Text('${_deadline.day}/${_deadline.month}/${_deadline.year}',
                           style: TextStyle(fontSize: 15, color: Colors.grey[600])),
                     ]),
                   ),
@@ -675,43 +713,71 @@ class _TaskScreenState extends State<TaskScreen> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                if (!formKey.currentState!.validate()) return;
+                if (!_formKey.currentState!.validate()) return;
                 context.read<TaskProvider>().addTask(
-                  title: titleCtrl.text.trim(), description: descCtrl.text.trim(),
-                  subject: selectedSubject, deadline: deadline, priority: priority,
+                  title: _titleCtrl.text.trim(), description: _descCtrl.text.trim(),
+                  subject: _selectedSubject, deadline: _deadline, priority: _priority,
                 );
-                Navigator.pop(ctx);
+                Navigator.pop(context);
               },
               child: const Text('Add Task'),
             ),
           ]),
         ),
-      )),
-    ).then((_) {
-      // 弹窗关闭时记得销毁控制器和停止语音
-      titleCtrl.dispose();
-      descCtrl.dispose();
-      if (isListening) speech.stop();
-    });
+      ),
+    );
+  }
+}
+
+class EditTaskBottomSheet extends StatefulWidget {
+  final StudyTask task;
+  const EditTaskBottomSheet({super.key, required this.task});
+
+  @override
+  State<EditTaskBottomSheet> createState() => _EditTaskBottomSheetState();
+}
+
+class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _descCtrl;
+
+  String _selectedSubject = '';
+  String _priority = 'Medium';
+  late DateTime _deadline;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleCtrl = TextEditingController(text: widget.task.title);
+    _descCtrl = TextEditingController(text: widget.task.description);
+    _priority = widget.task.priority;
+    _deadline = widget.task.deadline;
+
+    final subs = SubjectService().names;
+    if (widget.task.subject.isNotEmpty && subs.contains(widget.task.subject)) {
+      _selectedSubject = widget.task.subject;
+    } else if (subs.isNotEmpty) {
+      _selectedSubject = subs.first;
+    }
   }
 
-  void _showEditSheet(StudyTask task) {
-    final formKey = GlobalKey<FormState>();
-    final titleCtrl = TextEditingController(text: task.title);
-    final descCtrl = TextEditingController(text: task.description);
-    String selectedSubject = task.subject.isNotEmpty && _subjectNames.contains(task.subject) ? task.subject : (_subjectNames.isNotEmpty ? _subjectNames.first : '');
-    String priority = task.priority;
-    DateTime deadline = task.deadline;
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardTheme.color,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => Padding(
-        padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+  @override
+  Widget build(BuildContext context) {
+    final subs = SubjectService().names;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: SingleChildScrollView(
         child: Form(
-          key: formKey,
+          key: _formKey,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 20),
@@ -719,41 +785,46 @@ class _TaskScreenState extends State<TaskScreen> {
                 child: Text('Edit Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
             const SizedBox(height: 16),
             TextFormField(
-              controller: titleCtrl,
+              controller: _titleCtrl,
               decoration: const InputDecoration(hintText: 'Title'),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
             ),
             const SizedBox(height: 10),
-            TextFormField(controller: descCtrl, decoration: const InputDecoration(hintText: 'Description')),
+            TextFormField(controller: _descCtrl, decoration: const InputDecoration(hintText: 'Description')),
             const SizedBox(height: 10),
-            DropdownButtonFormField<String>(value: _subjectNames.contains(selectedSubject) ? selectedSubject : (_subjectNames.isNotEmpty ? _subjectNames.first : null), decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)), items: _subjectNames.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(), onChanged: (v) => setSt(() => selectedSubject = v ?? '')),
+            DropdownButtonFormField<String>(
+              value: subs.contains(_selectedSubject) ? _selectedSubject : (subs.isNotEmpty ? subs.first : null),
+              decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+              items: subs.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(),
+              onChanged: (v) => setState(() => _selectedSubject = v ?? ''),
+            ),
             const SizedBox(height: 10),
             Row(children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: priority,
+                  value: _priority,
                   decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
                   items: ['Low', 'Medium', 'High'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-                  onChanged: (v) => setSt(() => priority = v!),
+                  onChanged: (v) => setState(() => _priority = v!),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: InkWell(
                   onTap: () async {
-                    final d = await showDatePicker(context: ctx, initialDate: deadline, firstDate: DateTime(2024), lastDate: DateTime(2100));
-                    if (d != null) setSt(() => deadline = d);
+                    final d = await showDatePicker(context: context, initialDate: _deadline, firstDate: DateTime(2024), lastDate: DateTime(2100));
+                    if (d != null) setState(() => _deadline = d);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: Theme.of(ctx).inputDecorationTheme.fillColor,
+                      color: Theme.of(context).inputDecorationTheme.fillColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(children: [
                       Icon(Icons.calendar_today_rounded, size: 16, color: Colors.grey[500]),
                       const SizedBox(width: 8),
-                      Text('${deadline.day}/${deadline.month}/${deadline.year}',
+                      Text('${_deadline.day}/${_deadline.month}/${_deadline.year}',
                           style: TextStyle(fontSize: 15, color: Colors.grey[600])),
                     ]),
                   ),
@@ -763,18 +834,18 @@ class _TaskScreenState extends State<TaskScreen> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-                context.read<TaskProvider>().updateTask(task.copyWith(
-                  title: titleCtrl.text.trim(), description: descCtrl.text.trim(),
-                  subject: selectedSubject, priority: priority, deadline: deadline,
+                if (!_formKey.currentState!.validate()) return;
+                context.read<TaskProvider>().updateTask(widget.task.copyWith(
+                  title: _titleCtrl.text.trim(), description: _descCtrl.text.trim(),
+                  subject: _selectedSubject, priority: _priority, deadline: _deadline,
                 ));
-                Navigator.pop(ctx);
+                Navigator.pop(context);
               },
               child: const Text('Save Changes'),
             ),
           ]),
         ),
-      )),
-    ).then((_) { titleCtrl.dispose(); descCtrl.dispose(); });
+      ),
+    );
   }
 }
