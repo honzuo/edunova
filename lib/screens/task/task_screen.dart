@@ -1,13 +1,4 @@
 /// task_screen.dart — Task management screen with date-based view.
-///
-/// Features:
-/// - Horizontal date selector strip (30 days)
-/// - Filter chips (All / Done / Pending)
-/// - Task cards with priority colors and swipe-to-delete
-/// - Add/edit task bottom sheet with subject/priority/deadline
-/// - Quick-launch Pomodoro timer for any task
-/// - Upcoming tasks section for today's view
-
 import '../../constants/subjects.dart';
 import '../../models/subject.dart';
 import 'dart:io';
@@ -35,10 +26,8 @@ class _TaskScreenState extends State<TaskScreen> {
   late final PageController _datePageCtrl;
   List<Subject> _subjectList = [];
 
-  // We show 14 days: 7 past + today + 6 future
   static const _daysBefore = 7;
   static const _totalDays = 30;
-
   late final List<DateTime> _dates;
 
   @override
@@ -58,8 +47,6 @@ class _TaskScreenState extends State<TaskScreen> {
     if (mounted) setState(() => _subjectList = SubjectService().subjects);
   }
 
-  List<String> get _subjectNames => _subjectList.map((s) => s.name).toList();
-
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
@@ -73,8 +60,7 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   String _monthName(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[month - 1];
   }
 
@@ -86,7 +72,6 @@ class _TaskScreenState extends State<TaskScreen> {
     }
   }
 
-  // ── Complete Task with Photo Proof (Camera Access) ──
   Future<void> _completeTaskWithPhoto(dynamic task) async {
     final wantPhoto = await showDialog<bool>(
       context: context,
@@ -176,7 +161,6 @@ class _TaskScreenState extends State<TaskScreen> {
     final cs = Theme.of(context).colorScheme;
     final isToday = _isSameDay(_selectedDate, DateTime.now());
 
-    // Count tasks per date for dots
     final Map<String, int> taskCounts = {};
     for (final t in allTasks) {
       final key = '${t.deadline.year}-${t.deadline.month}-${t.deadline.day}';
@@ -191,15 +175,11 @@ class _TaskScreenState extends State<TaskScreen> {
             title: Text('${_monthName(_selectedDate.month)} ${_selectedDate.year}'),
             actions: [
               TextButton(
-                onPressed: () {
-                  setState(() => _selectedDate = DateTime.now());
-                },
+                onPressed: () => setState(() => _selectedDate = DateTime.now()),
                 child: const Text('Today'),
               ),
             ],
           ),
-
-          // ── Filter Chips ──
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -212,8 +192,6 @@ class _TaskScreenState extends State<TaskScreen> {
               ]),
             ),
           ),
-
-          // ── Date Selector Strip ──
           SliverToBoxAdapter(
             child: SizedBox(
               height: 82,
@@ -238,45 +216,25 @@ class _TaskScreenState extends State<TaskScreen> {
                       width: 52,
                       margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
                       decoration: BoxDecoration(
-                        color: selected
-                            ? cs.primary
-                            : today
-                            ? cs.primary.withAlpha(15)
-                            : Colors.transparent,
+                        color: selected ? cs.primary : today ? cs.primary.withAlpha(15) : Colors.transparent,
                         borderRadius: BorderRadius.circular(16),
-                        border: today && !selected
-                            ? Border.all(color: cs.primary.withAlpha(50), width: 1.5)
-                            : null,
+                        border: today && !selected ? Border.all(color: cs.primary.withAlpha(50), width: 1.5) : null,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
                             _weekdayShort(date.weekday),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: selected ? Colors.white70 : Colors.grey[500],
-                            ),
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: selected ? Colors.white70 : Colors.grey[500]),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${date.day}',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: selected ? Colors.white : null,
-                            ),
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: selected ? Colors.white : null),
                           ),
                           const SizedBox(height: 4),
                           if (count > 0)
-                            Container(
-                              width: 6, height: 6,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: selected ? Colors.white70 : cs.primary,
-                              ),
-                            )
+                            Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: selected ? Colors.white70 : cs.primary))
                           else
                             const SizedBox(width: 6, height: 6),
                         ],
@@ -287,35 +245,23 @@ class _TaskScreenState extends State<TaskScreen> {
               ),
             ),
           ),
-
-          // ── Date Header ──
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Row(children: [
                 Text(
-                  isToday
-                      ? 'Today'
-                      : '${_selectedDate.day} ${_monthName(_selectedDate.month)}',
+                  isToday ? 'Today' : '${_selectedDate.day} ${_monthName(_selectedDate.month)}',
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.5),
                 ),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: cs.primary.withAlpha(20),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${dayTasks.length}',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: cs.primary),
-                  ),
+                  decoration: BoxDecoration(color: cs.primary.withAlpha(20), borderRadius: BorderRadius.circular(10)),
+                  child: Text('${dayTasks.length}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: cs.primary)),
                 ),
               ]),
             ),
           ),
-
-          // ── Task List ──
           if (dayTasks.isEmpty)
             SliverToBoxAdapter(
               child: Padding(
@@ -325,10 +271,7 @@ class _TaskScreenState extends State<TaskScreen> {
                   children: [
                     Icon(Icons.check_circle_outline_rounded, size: 48, color: Colors.grey[300]),
                     const SizedBox(height: 12),
-                    Text(
-                      isToday ? 'No tasks for today' : 'No tasks on this day',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 15),
-                    ),
+                    Text(isToday ? 'No tasks for today' : 'No tasks on this day', style: TextStyle(color: Colors.grey[400], fontSize: 15)),
                   ],
                 )),
               ),
@@ -342,14 +285,11 @@ class _TaskScreenState extends State<TaskScreen> {
                 itemBuilder: (context, i) => _taskCard(dayTasks[i]),
               ),
             ),
-
-          // ── Upcoming Section ──
           if (isToday && allTasks.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 28, 20, 8),
-                child: Text('Upcoming',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[500])),
+                child: Text('Upcoming', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[500])),
               ),
             ),
             SliverPadding(
@@ -357,14 +297,10 @@ class _TaskScreenState extends State<TaskScreen> {
               sliver: SliverList.separated(
                 itemCount: _upcomingTasks(allTasks).length.clamp(0, 5),
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
-                itemBuilder: (context, i) {
-                  final task = _upcomingTasks(allTasks)[i];
-                  return _compactTaskRow(task);
-                },
+                itemBuilder: (context, i) => _compactTaskRow(_upcomingTasks(allTasks)[i]),
               ),
             ),
           ],
-
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
@@ -388,8 +324,7 @@ class _TaskScreenState extends State<TaskScreen> {
     final today = DateTime.now();
     return all
         .where((t) => t.deadline.isAfter(DateTime(today.year, today.month, today.day)) && !t.isCompleted)
-        .toList()
-      ..sort((a, b) => a.deadline.compareTo(b.deadline));
+        .toList()..sort((a, b) => a.deadline.compareTo(b.deadline));
   }
 
   Widget _compactTaskRow(StudyTask task) {
@@ -398,13 +333,7 @@ class _TaskScreenState extends State<TaskScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(children: [
-          Container(
-            width: 4, height: 32,
-            decoration: BoxDecoration(
-              color: _priorityColor(task.priority),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          Container(width: 4, height: 32, decoration: BoxDecoration(color: _priorityColor(task.priority), borderRadius: BorderRadius.circular(2))),
           const SizedBox(width: 12),
           Expanded(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,16 +344,10 @@ class _TaskScreenState extends State<TaskScreen> {
           )),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: daysLeft <= 1 ? const Color(0xFFFF3B30).withAlpha(15) : Colors.grey.withAlpha(15),
-              borderRadius: BorderRadius.circular(8),
-            ),
+            decoration: BoxDecoration(color: daysLeft <= 1 ? const Color(0xFFFF3B30).withAlpha(15) : Colors.grey.withAlpha(15), borderRadius: BorderRadius.circular(8)),
             child: Text(
               daysLeft == 0 ? 'Tomorrow' : 'In $daysLeft days',
-              style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w600,
-                color: daysLeft <= 1 ? const Color(0xFFFF3B30) : Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: daysLeft <= 1 ? const Color(0xFFFF3B30) : Colors.grey[600]),
             ),
           ),
         ]),
@@ -443,10 +366,7 @@ class _TaskScreenState extends State<TaskScreen> {
   }
 
   Widget _taskCard(StudyTask task) {
-    final studyMinutes = task.id != null
-        ? context.watch<SessionProvider>().minutesForTask(task.id!)
-        : 0;
-
+    final studyMinutes = task.id != null ? context.watch<SessionProvider>().minutesForTask(task.id!) : 0;
     return Card(
       child: Dismissible(
         key: ValueKey(task.id),
@@ -457,16 +377,13 @@ class _TaskScreenState extends State<TaskScreen> {
           decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(16)),
           child: const Icon(Icons.delete_rounded, color: Colors.white),
         ),
-        confirmDismiss: (_) async {
-          return await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-            title: const Text('Delete Task?'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-              TextButton(onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Delete', style: TextStyle(color: Colors.red))),
-            ],
-          ));
-        },
+        confirmDismiss: (_) async => await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+          title: const Text('Delete Task?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+          ],
+        )),
         onDismissed: (_) { if (task.id != null) context.read<TaskProvider>().removeTask(task.id!); },
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -484,11 +401,8 @@ class _TaskScreenState extends State<TaskScreen> {
             child: Row(children: [
               GestureDetector(
                 onTap: () {
-                  if (!task.isCompleted) {
-                    _completeTaskWithPhoto(task);
-                  } else {
-                    context.read<TaskProvider>().toggleComplete(task);
-                  }
+                  if (!task.isCompleted) _completeTaskWithPhoto(task);
+                  else context.read<TaskProvider>().toggleComplete(task);
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
@@ -496,13 +410,9 @@ class _TaskScreenState extends State<TaskScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: task.isCompleted ? const Color(0xFF34C759) : Colors.transparent,
-                    border: Border.all(
-                      color: task.isCompleted ? const Color(0xFF34C759) : Colors.grey[400]!,
-                      width: 2,
-                    ),
+                    border: Border.all(color: task.isCompleted ? const Color(0xFF34C759) : Colors.grey[400]!, width: 2),
                   ),
-                  child: task.isCompleted
-                      ? const Icon(Icons.check_rounded, size: 16, color: Colors.white) : null,
+                  child: task.isCompleted ? const Icon(Icons.check_rounded, size: 16, color: Colors.white) : null,
                 ),
               ),
               const SizedBox(width: 14),
@@ -515,17 +425,13 @@ class _TaskScreenState extends State<TaskScreen> {
                   )),
                   if (task.description.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    Text(task.description, maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+                    Text(task.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Colors.grey[500])),
                   ],
                   const SizedBox(height: 6),
                   Row(children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _priorityColor(task.priority).withAlpha(20),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
+                      decoration: BoxDecoration(color: _priorityColor(task.priority).withAlpha(20), borderRadius: BorderRadius.circular(6)),
                       child: Text(task.priority, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _priorityColor(task.priority))),
                     ),
                     if (task.subject.isNotEmpty) ...[
@@ -543,20 +449,15 @@ class _TaskScreenState extends State<TaskScreen> {
                   ]),
                 ]),
               ),
-              // Study button
               if (!task.isCompleted)
                 GestureDetector(
                   onTap: () {
                     HapticFeedback.mediumImpact();
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => PomodoroScreen(initialTask: task)));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => PomodoroScreen(initialTask: task)));
                   },
                   child: Container(
                     width: 36, height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF9500).withAlpha(20),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    decoration: BoxDecoration(color: const Color(0xFFFF9500).withAlpha(20), borderRadius: BorderRadius.circular(10)),
                     child: const Icon(Icons.play_arrow_rounded, size: 20, color: Color(0xFFFF9500)),
                   ),
                 ),
@@ -584,7 +485,6 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
   String _selectedSubject = '';
   String _priority = 'Medium';
   late DateTime _deadline;
-
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
 
@@ -593,9 +493,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     super.initState();
     _deadline = widget.selectedDate;
     final subs = SubjectService().names;
-    if (subs.isNotEmpty) {
-      _selectedSubject = subs.first;
-    }
+    if (subs.isNotEmpty) _selectedSubject = subs.first;
   }
 
   @override
@@ -609,7 +507,6 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final subs = SubjectService().names;
-
     return Padding(
       padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(context).viewInsets.bottom + 24),
       child: SingleChildScrollView(
@@ -618,44 +515,26 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 20),
-            const Align(alignment: Alignment.centerLeft,
-                child: Text('New Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+            const Align(alignment: Alignment.centerLeft, child: Text('New Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
             const SizedBox(height: 16),
-
             TextFormField(
               controller: _titleCtrl,
               decoration: InputDecoration(
                 hintText: 'Title (e.g., Do Math Homework)',
                 suffixIcon: IconButton(
-                  icon: Icon(
-                    _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                    color: _isListening ? const Color(0xFFFF3B30) : const Color(0xFF5856D6),
-                  ),
-                  tooltip: 'Tap to speak',
+                  icon: Icon(_isListening ? Icons.mic_rounded : Icons.mic_none_rounded, color: _isListening ? const Color(0xFFFF3B30) : const Color(0xFF5856D6)),
                   onPressed: () async {
                     HapticFeedback.lightImpact();
                     if (!_isListening) {
                       bool available = await _speech.initialize(
-                        onStatus: (val) {
-                          if (val == 'done' || val == 'notListening') {
-                            if (mounted) setState(() => _isListening = false);
-                          }
-                        },
+                        onStatus: (val) { if (val == 'done' || val == 'notListening') if (mounted) setState(() => _isListening = false); },
                         onError: (val) => debugPrint('onError: $val'),
                       );
                       if (available) {
                         setState(() => _isListening = true);
-                        _speech.listen(
-                          onResult: (val) => setState(() {
-                            _titleCtrl.text = val.recognizedWords;
-                          }),
-                        );
+                        _speech.listen(onResult: (val) => setState(() => _titleCtrl.text = val.recognizedWords));
                       } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Speech recognition not available on this device.')),
-                          );
-                        }
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Speech recognition not available on this device.')));
                       }
                     } else {
                       setState(() => _isListening = false);
@@ -666,7 +545,6 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
               ),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
             ),
-
             const SizedBox(height: 10),
             TextFormField(controller: _descCtrl, decoration: const InputDecoration(hintText: 'Description')),
             const SizedBox(height: 10),
@@ -696,15 +574,11 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).inputDecorationTheme.fillColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    decoration: BoxDecoration(color: Theme.of(context).inputDecorationTheme.fillColor, borderRadius: BorderRadius.circular(12)),
                     child: Row(children: [
                       Icon(Icons.calendar_today_rounded, size: 16, color: Colors.grey[500]),
                       const SizedBox(width: 8),
-                      Text('${_deadline.day}/${_deadline.month}/${_deadline.year}',
-                          style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+                      Text('${_deadline.day}/${_deadline.month}/${_deadline.year}', style: TextStyle(fontSize: 15, color: Colors.grey[600])),
                     ]),
                   ),
                 ),
@@ -781,8 +655,7 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 36, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 20),
-            const Align(alignment: Alignment.centerLeft,
-                child: Text('Edit Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+            const Align(alignment: Alignment.centerLeft, child: Text('Edit Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
             const SizedBox(height: 16),
             TextFormField(
               controller: _titleCtrl,
@@ -817,21 +690,62 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).inputDecorationTheme.fillColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    decoration: BoxDecoration(color: Theme.of(context).inputDecorationTheme.fillColor, borderRadius: BorderRadius.circular(12)),
                     child: Row(children: [
                       Icon(Icons.calendar_today_rounded, size: 16, color: Colors.grey[500]),
                       const SizedBox(width: 8),
-                      Text('${_deadline.day}/${_deadline.month}/${_deadline.year}',
-                          style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+                      Text('${_deadline.day}/${_deadline.month}/${_deadline.year}', style: TextStyle(fontSize: 15, color: Colors.grey[600])),
                     ]),
                   ),
                 ),
               ),
             ]),
+
             const SizedBox(height: 20),
+
+            // 👇 新增：显示照片的 UI 区块并支持点击全屏
+            if (widget.task.isCompleted && widget.task.proofPhotoPath != null) ...[
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Proof of Work', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey)),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => FullScreenImage(imageUrl: widget.task.proofPhotoPath!),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    widget.task.proofPhotoPath!,
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: 200,
+                        color: Colors.grey.withAlpha(20),
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 100,
+                      color: Colors.grey.withAlpha(20),
+                      child: const Center(child: Icon(Icons.broken_image_rounded, color: Colors.grey)),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+            // 👆 新增结束
+
             ElevatedButton(
               onPressed: () {
                 if (!_formKey.currentState!.validate()) return;
@@ -844,6 +758,40 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
               child: const Text('Save Changes'),
             ),
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+// 👇 新增：全屏图片查看组件
+class FullScreenImage extends StatelessWidget {
+  final String imageUrl;
+
+  const FullScreenImage({super.key, required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          panEnabled: true,
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const Center(child: CircularProgressIndicator(color: Colors.white));
+            },
+          ),
         ),
       ),
     );

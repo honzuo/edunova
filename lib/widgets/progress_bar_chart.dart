@@ -20,18 +20,35 @@ class ProgressBarChart extends StatelessWidget {
     final labels = weeklyStudyMinutes.keys.toList();
     final values = weeklyStudyMinutes.values.toList();
 
+    // 计算 Y 轴的最大值
+    final maxYValue = (values.isEmpty
+        ? 10
+        : (values.reduce((a, b) => a > b ? a : b) + 30))
+        .toDouble();
+
     return SizedBox(
       height: 220,
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
-          maxY: (values.isEmpty
-              ? 10
-              : (values.reduce((a, b) => a > b ? a : b) + 30))
-              .toDouble(),
+          maxY: maxYValue,
           titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: true),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 42,
+                getTitlesWidget: (value, meta) {
+                  if (value == meta.max) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Text(
+                      '${value.toInt()}',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                      textAlign: TextAlign.right,
+                    ),
+                  );
+                },
+              ),
             ),
             rightTitles: const AxisTitles(
               sideTitles: SideTitles(showTitles: false),
@@ -42,23 +59,46 @@ class ProgressBarChart extends StatelessWidget {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
+                reservedSize: 30,
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
                   if (index < 0 || index >= labels.length) {
                     return const SizedBox.shrink();
                   }
-                  return Text(labels[index]);
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      labels[index],
+                      style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500
+                      ),
+                    ),
+                  );
                 },
               ),
             ),
           ),
           borderData: FlBorderData(show: false),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: maxYValue > 60 ? maxYValue / 5 : 20,
+            getDrawingHorizontalLine: (value) => FlLine(
+              color: Colors.grey.withAlpha(40),
+              strokeWidth: 1,
+              dashArray: [5, 5],
+            ),
+          ),
           barGroups: List.generate(labels.length, (index) {
             return BarChartGroupData(
               x: index,
               barRods: [
                 BarChartRodData(
                   toY: values[index].toDouble(),
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 14,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ],

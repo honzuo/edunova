@@ -12,6 +12,7 @@ import '../../providers/task_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/progress_provider.dart';
 import '../../providers/achievement_provider.dart';
+import '../../providers/goal_provider.dart';
 import '../../services/app_refresh_service.dart';
 
 import '../home/home_screen.dart';
@@ -57,12 +58,43 @@ class _MainScreenState extends State<MainScreen> {
   /// Reload all providers when data changes anywhere.
   Future<void> _onDataChanged() async {
     if (!mounted) return;
+
     await context.read<SessionProvider>().loadSessions();
     await context.read<TaskProvider>().loadTasks();
+
     if (mounted) {
       context.read<ProgressProvider>().generateReport(
         taskProvider: context.read<TaskProvider>(),
         sessionProvider: context.read<SessionProvider>(),
+      );
+
+      final sessionProv = context.read<SessionProvider>();
+      final taskProv = context.read<TaskProvider>();
+      final achieveProv = context.read<AchievementProvider>();
+
+      final now = DateTime.now();
+
+      final monthlyMinutes = sessionProv.sessions
+          .where((s) => s.startTime.year == now.year && s.startTime.month == now.month)
+          .fold(0, (sum, s) => sum + s.durationMinutes);
+
+      int todayTasks = 0;
+      try {
+        todayTasks = taskProv.filteredTasks
+            .where((t) => t.isCompleted &&
+            t.deadline.year == now.year &&
+            t.deadline.month == now.month &&
+            t.deadline.day == now.day)
+            .length;
+      } catch (e) {
+        debugPrint('Get Task number fail: $e');
+      }
+
+      await context.read<GoalProvider>().refreshGoalValues(
+        weeklyStudyMinutes: sessionProv.thisWeekStudyMinutes,
+        monthlyStudyMinutes: monthlyMinutes,
+        dailyCompletedTasks: todayTasks,
+        streak: achieveProv.currentStreak,
       );
     }
   }

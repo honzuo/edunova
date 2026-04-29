@@ -5,6 +5,7 @@
 /// - Features: Achievements, Goals, Subjects, Export
 /// - Preferences: Dark Mode toggle
 /// - Info: About, Sign Out
+/// - Danger Zone: Delete Account
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -55,6 +56,72 @@ class SettingsScreen extends StatelessWidget {
           MaterialPageRoute(builder: (_) => const LoginScreen()),
               (_) => false,
         );
+      }
+    }
+  }
+
+  // ── Delete Account Logic ──
+  Future<void> _deleteAccount(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Delete Account', style: TextStyle(color: Colors.red)),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete your account?\n\n'
+              'This action cannot be undone. All your study data, tasks, and achievements will be lost.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      // 显示一个加载圈，因为请求网络可能需要几秒钟
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      // 调用你 AuthService 里的删除逻辑
+      final success = await AuthService().deleteAccount();
+
+      if (context.mounted) {
+        Navigator.pop(context); // 关掉加载圈
+
+        if (success) {
+          // 删除成功，清空路由栈并跳转回登录页
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+          );
+        } else {
+          // 删除失败，提示用户
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete account. Please try again.')),
+          );
+        }
       }
     }
   }
@@ -135,7 +202,7 @@ class SettingsScreen extends StatelessWidget {
                       children: [
                         _item(context, 'About', Icons.info_outline_rounded, Colors.grey, () => _push(context, const AboutScreen())),
                         _div(),
-                        // Custom styling for the Sign Out button
+                        // Sign Out button
                         InkWell(
                           onTap: () => _logout(context),
                           borderRadius: BorderRadius.circular(16),
@@ -143,14 +210,39 @@ class SettingsScreen extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                             child: Row(
                               children: [
-                                _ib(Icons.logout_rounded, Colors.red),
+                                _ib(Icons.logout_rounded, Colors.grey[700]!),
                                 const SizedBox(width: 14),
-                                const Text('Sign Out', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.red)),
+                                Text('Sign Out', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey[800])),
                               ],
                             ),
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // ── 5. DANGER ZONE ──
+                  _groupLabel('DANGER ZONE'),
+                  Card(
+                    color: Colors.red.withAlpha(10), // 给出淡淡的红色警告背景
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: Colors.red.withAlpha(50), width: 1),
+                    ),
+                    child: InkWell(
+                      onTap: () => _deleteAccount(context),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                        child: Row(
+                          children: [
+                            _ib(Icons.delete_forever_rounded, Colors.red),
+                            const SizedBox(width: 14),
+                            const Text('Delete Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.red)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -167,12 +259,10 @@ class SettingsScreen extends StatelessWidget {
   // ── UI Helper Methods ──
   // ══════════════════════════════════════
 
-  /// Helper method for quick navigation routing
   void _push(BuildContext c, Widget s) {
     Navigator.push(c, MaterialPageRoute(builder: (_) => s));
   }
 
-  /// Label widget for grouping sections (e.g., 'ACCOUNT', 'FEATURES')
   Widget _groupLabel(String t) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
@@ -181,14 +271,13 @@ class SettingsScreen extends StatelessWidget {
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: Colors.grey[500],
+          color: t == 'DANGER ZONE' ? Colors.red.withAlpha(200) : Colors.grey[500],
           letterSpacing: 0.5,
         ),
       ),
     );
   }
 
-  /// Standard menu list item with icon, text, and trailing arrow
   Widget _item(BuildContext c, String t, IconData ic, Color col, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
@@ -211,7 +300,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  /// Square container with a tinted background for icons
   Widget _ib(IconData ic, Color c) {
     return Container(
       width: 32,
@@ -224,11 +312,10 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  /// Light grey divider used between list items
   Widget _div() {
     return Divider(
       height: 0.5,
-      indent: 64, // Indent to align with the text, bypassing the icon
+      indent: 64,
       color: Colors.grey.withAlpha(30),
     );
   }

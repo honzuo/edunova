@@ -13,6 +13,7 @@ class StudyTask {
   final DateTime deadline;
   final String priority;
   final bool isCompleted;
+  final String? proofPhotoPath;
   final DateTime createdAt;
 
   StudyTask({
@@ -24,6 +25,7 @@ class StudyTask {
     required this.deadline,
     required this.priority,
     required this.isCompleted,
+    this.proofPhotoPath,
     required this.createdAt,
   });
 
@@ -47,6 +49,7 @@ class StudyTask {
       deadline: deadline ?? this.deadline,
       priority: priority ?? this.priority,
       isCompleted: isCompleted ?? this.isCompleted,
+      proofPhotoPath: proofPhotoPath ?? this.proofPhotoPath,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -61,6 +64,7 @@ class StudyTask {
       'deadline': deadline.toIso8601String(),
       'priority': priority,
       'is_completed': isCompleted ? 1 : 0,
+      'proof_photo_path': proofPhotoPath,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -76,6 +80,7 @@ class StudyTask {
       DateTime.tryParse(map['deadline'] as String? ?? '') ?? DateTime.now(),
       priority: map['priority'] as String? ?? 'Medium',
       isCompleted: map['is_completed'] == 1 || map['is_completed'] == true,
+      proofPhotoPath: map['proof_photo_path'] as String?,
       createdAt: DateTime.tryParse(map['created_at'] as String? ?? '') ??
           DateTime.now(),
     );
